@@ -33,7 +33,7 @@ def addRoutine():
 #루틴삭제
 @bp.delete('/deleteRoutine/<routineId>')
 def deleteRoutine(routineId):
-  routine=db.session.query(routine).get(routineId)
+  routine=db.session.query(Routine).get(routineId)
   db.session.delete(routine)
   db.session.commit()
   return jsonify({'ok':True, 'message':'삭제 완료'}),200
