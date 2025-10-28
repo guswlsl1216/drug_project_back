@@ -11,4 +11,8 @@ def create_app():
   cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
   login_manager.init_app(app)
 
+  from .blueprints.routine import bp as routine_bp
+
+  app.register_blueprint(routine_bp, url_prefix='/routine')
+
   return app
