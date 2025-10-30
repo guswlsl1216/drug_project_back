@@ -1,18 +1,20 @@
 from datetime import datetime
+
+from sqlalchemy import JSON
 from ..extensions import db
 
 class Routine(db.Model):
   __tablename__='routine'
 
-  id=db.Column(db.Integer, primary_key=True)
-  drug_id=db.Column(db.Integer, nullable=False) #db.ForeignKey('drug.id')
-  author_id=db.Column(db.Integer, nullable=False) #db.ForeignKey('users.id')
+  id = db.Column(db.Integer, primary_key=True)
+  drug_id = db.Column(db.Integer, nullable=False) #db.ForeignKey('drug.id')
+  author_id = db.Column(db.Integer, nullable=False) #db.ForeignKey('users.id')
   # author=db.relationship('User',backref=db.backref('routine'))
-  eattime = db.Column(db.Time, nullable=False)
   start_date = db.Column(db.Date, nullable=False)
   end_date = db.Column(db.Date, nullable=False)
-  count = db.Column(db.Integer, nullable=False)
-
+  count = db.Column(db.Integer, nullable=False) 
+  eattime = db.Column(JSON, default=lambda: [False, False, False]) #아침 점심 저녁
+  
   def to_dict(self):
     return{
       'drugName':'오메가3', #test self.drug.drugName
