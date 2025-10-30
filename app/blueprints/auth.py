@@ -1,18 +1,20 @@
 from flask import Blueprint, request, jsonify
 from email_validator import validate_email, EmailNotValidError
 from ..extensions import db
-from ..models import User
+from ..models.user import User
 from ..utils.db_helpers import safe_commit
 from ..utils.response import make_response
 from ..utils.validators import is_valid_email, is_valid_password, is_unique_user
 from flask_login import login_user, login_required, current_user, logout_user
 
-bp = Blueprint('auth',__name__, url_prefix='/auth')
+bp = Blueprint('auth',__name__)
 
 @bp.post('/signup')
 def signup():
+  print("✅ /register route reached")
   try:
     data = request.get_json()
+    print("📦 request data:", data)
 
     username = data.get('username')
     password = data.get('password')
@@ -27,33 +29,34 @@ def signup():
     missing = [f for f in fields if not data.get(f)]
     if missing:
       return make_response(
-        message=f"필수 항목({', '.join(missing)})을 입력해주세요.",
         ok=False,
+        message=f"필수 항목({', '.join(missing)})을 입력해주세요.",
         status=400
       )
     
     # 이메일 형식 체크
     if not is_valid_email(email):
       return make_response(
-        message='이메일 형식이 올바르지 않습니다.',
         ok=False,
+        message='이메일 형식이 올바르지 않습니다.',
         status=400
       )
 
     # 비밀번호 유효성 체크
     if not is_valid_password(password):
       return make_response(
-        message='비밀번호 조건이 올바르지 않습니다.',
         ok=False,
+        message='비밀번호 조건이 올바르지 않습니다.',
         status=400
       )
     
     # 중복 체크
     errors = is_unique_user(username=username, email=email, nickname=nickname)
     if errors:
+      print("="*50, errors)
       return make_response(
-        message=errors,
         ok=False,
+        message=errors,
         status=400
       )
     
@@ -77,21 +80,22 @@ def signup():
     })
 
     if not result['ok']:
-      return make_response(message=result['message'], ok=False, status=400)
+      return make_response(ok=False, message=result['message'], status=400)
     
-    return make_response(data=user.to_dict(), message='회원가입 완료', ok=True, status=200)
+    return make_response(data=user.to_dict(), ok=True, message='회원가입 완료', status=200)
 
   except KeyError as e:
+    print(f"[KeyError] 회원가입 중 오류 발생 : {str(e)}")
     return make_response(
-      message=f"필드 누락:{e.args[0]}",
       ok=False,
+      message=f"필드 누락:{e.args[0]}",
       status=400
     )
   except Exception as e:
-    print(f"[ERROR] 회원가입 중 오류 발생 : {str(e)}")
+    print(f"[Exception] 회원가입 중 오류 발생 : {str(e)}")
     db.session.rollback()
     return make_response(
-      message='서버 내부 오류가 발생했습니다.',
       ok=False,
+      message='서버 내부 오류가 발생했습니다.',
       status=500
     )

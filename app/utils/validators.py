@@ -26,5 +26,7 @@ def is_unique_user(username,email,nickname):
     (User.email == email) |
     (User.nickname == nickname)
   ).first() # 첫 번째 것만 조회
-  return user is None # 조건에 맞는 유저가 없으면 None, 있으면 User 객체를 반환
+  if user is None:
+    user = None
+  return user  # 조건에 맞는 유저가 없으면 None, 있으면 User 객체를 반환
   
