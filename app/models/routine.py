@@ -13,7 +13,7 @@ class Routine(db.Model):
   start_date = db.Column(db.Date, nullable=False)
   end_date = db.Column(db.Date, nullable=False)
   count = db.Column(db.Integer, nullable=False) 
-  eattime = db.Column(JSON, nullable=False, default=lambda: []) #아침 점심 저녁
+  eattime = db.Column(JSON, default=lambda: [False, False, False]) #아침 점심 저녁
   
   def to_dict(self):
     return{
