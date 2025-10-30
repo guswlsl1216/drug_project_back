@@ -12,6 +12,10 @@ def create_app():
   cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
   login_manager.init_app(app)
 
+  with app.app_context():
+    from .models import auto as auto_models
+    auto_models.prepare_automap(only={"health_products", "drug_products"})
+
   from .blueprints.routine import bp as routine_bp
   from .blueprints.auth import bp as auth_bp
 
