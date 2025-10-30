@@ -4,7 +4,9 @@ from typing import Iterable, Optional
 from ..extensions import db
 
 metadata = MetaData()
-Base = automap_base(metadata=metadata)
+Base = automap_base(
+  metadata=metadata
+)
 
 def prepare_automap(*, only: Optional[Iterable[str]] = None, schema: Optional[str] = None):
   """
