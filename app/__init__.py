@@ -2,6 +2,7 @@ from flask import Flask
 from .extensions import db, migrate, login_manager, cors
 from .config import Config
 
+
 def create_app():
   app = Flask(__name__)
   app.config.from_object(Config)
@@ -16,7 +17,9 @@ def create_app():
     auto_models.prepare_automap(only={"health_products", "drug_products"})
 
   from .blueprints.routine import bp as routine_bp
+  from .blueprints.auth import bp as auth_bp
 
   app.register_blueprint(routine_bp, url_prefix='/routine')
+  app.register_blueprint(auth_bp, url_prefix='/auth')
 
   return app
