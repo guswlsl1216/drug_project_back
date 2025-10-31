@@ -12,7 +12,9 @@ def create_app():
   login_manager.init_app(app)
 
   from .blueprints.routine import bp as routine_bp
+  from .blueprints.user_meds import bp as user_meds_bp
 
   app.register_blueprint(routine_bp, url_prefix='/routine')
+  app.register_blueprint(user_meds_bp, url_prefix='/user_meds')
 
   return app
