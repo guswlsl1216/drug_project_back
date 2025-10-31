@@ -7,15 +7,21 @@ bp = Blueprint('user_meds', __name__)
 @bp.post('/meds')
 def add_meds():
   user_id = request.form.get('user_id')
+  item_type = request.form.get('item_type')
+  taken = request.form.get('taken')
   predicted_name = request.form.get('predicted_name')
 
-  if not user_id or not predicted_name:
+  if not user_id or not predicted_name or not item_type or not taken:
     return jsonify({'error' : '필수 항목을 모두 입력해 주세요.'}), 400
 
   # DB 저장
   new_meds = User_meds(
     user_id=int(user_id),
+    item_type = item_type,
+    taken = taken,
     predicted_name = predicted_name,
+    
+
   )
   db.session.add(new_meds)
   db.session.commit()
@@ -29,7 +35,7 @@ def add_meds():
     } 
 }), 200
 
-@bp.put('meds/<int:med_id>')
+@bp.put('/meds/<int:med_id>')
 def update_meds(med_id):
   data = request.get_json()
   new_name = data.get('confirmed_name')
@@ -46,10 +52,8 @@ def update_meds(med_id):
   db.session.commit()
 
 
-
-
 # # get으로 이전에 저장한 약 리스트 불러오기
-@bp.get('meds/<int:user_id>')
+@bp.get('/meds/<int:user_id>')
 def get_mymeds(user_id):
   meds = User_meds.query.filter_by(user_id=user_id).all()
 
@@ -63,6 +67,7 @@ def get_mymeds(user_id):
     'confirmed_name' : med.confirmed_name
   } for med in meds]
 
+  print(meds_List)
   return jsonify({
     'message' : '조회가 완료되었습니다',
     'med_count' : len(meds_List),
