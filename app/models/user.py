@@ -12,7 +12,11 @@ class User(db.Model, UserMixin):
   email = db.Column(db.String(100), unique=True, nullable=False)
   created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
   updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
-  deleted_at = db.Column(db.DateTime, default=None, nullable=True)
+  deleted_at = db.Column(db.DateTime, nullable=True)
+  age = db.Column(db.String(5), nullable=True)
+  gender = db.Column(db.String(10), nullable=True)
+  address = db.Column(db.String(200), nullable=True)
+  detailed_address = db.Column(db.String(200), nullable=True)
 
   def set_password(self, password): # 암호화
     self.password_hash = generate_password_hash(password)
