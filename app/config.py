@@ -7,3 +7,4 @@ class Config:
   SQLALCHEMY_TRACK_MODIFICATIONS = False
   SQLALCHEMY_ECHO = True
   CORS_ORIGINS=["http://localhost:5173"]
+  UPLOAD_FOLDER = './uploads'
