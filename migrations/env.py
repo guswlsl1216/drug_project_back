@@ -50,6 +50,17 @@ def get_metadata():
         return target_db.metadatas[None]
     return target_db.metadata
 
+AUTOMAP_SKIP = {"health_products", "drug_products", "drug_contraindications"}
+
+def include_object(object, name, type_, reflected, compare_to):
+    """
+    Alembic autogenerate 시, 특정 테이블들을 대상에서 제외.
+    - type_ == "table": 테이블 자체 생성/삭제/변경
+    - 필요 시 index/constraint도 name으로 필터링 가능
+    """
+    if type_ == "table" and name in AUTOMAP_SKIP:
+        return False
+    return True
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
@@ -65,7 +76,7 @@ def run_migrations_offline():
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True
+        url=url, target_metadata=get_metadata(), literal_binds=True, include_object=include_object
     )
 
     with context.begin_transaction():
@@ -93,6 +104,8 @@ def run_migrations_online():
     conf_args = current_app.extensions['migrate'].configure_args
     if conf_args.get("process_revision_directives") is None:
         conf_args["process_revision_directives"] = process_revision_directives
+    
+    conf_args.setdefault("include_object", include_object)
 
     connectable = get_engine()
 
