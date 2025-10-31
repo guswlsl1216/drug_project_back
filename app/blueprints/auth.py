@@ -5,7 +5,6 @@ from ..models.user import User
 from ..utils.db_helpers import safe_commit
 from ..utils.response import make_response
 from ..utils.validators import is_valid_email, is_valid_password, is_unique_user
-from flask_login import login_user, login_required, current_user, logout_user
 
 bp = Blueprint('auth',__name__)
 

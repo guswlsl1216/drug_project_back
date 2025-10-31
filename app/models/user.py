@@ -13,7 +13,7 @@ class User(db.Model, UserMixin):
   created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
   updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
   deleted_at = db.Column(db.DateTime, nullable=True)
-  age = db.Column(db.String(5), nullable=True)
+  age = db.Column(db.Integer, nullable=True)
   gender = db.Column(db.String(10), nullable=True)
   address = db.Column(db.String(200), nullable=True)
   detailed_address = db.Column(db.String(200), nullable=True)
