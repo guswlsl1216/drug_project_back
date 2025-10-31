@@ -5,7 +5,7 @@ from flask import jsonify
 """
 표준화 된 API 응답을 생성하는 함수
 """
-def make_response(ok=True, data=None, message='', status=200):
+def make_response(data=None, ok=True, message='', status=200):
   return jsonify({
     'ok' : ok,
     'message' : message,
