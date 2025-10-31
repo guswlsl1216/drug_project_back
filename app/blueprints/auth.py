@@ -56,7 +56,7 @@ def signup():
       print("="*50, errors)
       return make_response(
         ok=False,
-        message=errors,
+        message='이미 가입 된 회원입니다.',
         status=400
       )
     

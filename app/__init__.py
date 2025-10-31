@@ -14,7 +14,7 @@ def create_app():
 
   with app.app_context():
     from .models import auto as auto_models
-    auto_models.prepare_automap(only={"health_products", "drug_products"})
+    auto_models.prepare_automap(only={"health_products", "drug_products", "drug_contraindications"})
 
   from .blueprints.routine import bp as routine_bp
   from .blueprints.user_meds import bp as user_meds_bp
