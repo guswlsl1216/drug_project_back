@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models.user_meds import User_meds
+from app.models.user_drugs import User_drugs
 from flask_login import current_user
 
-bp = Blueprint('user_meds', __name__)
+bp = Blueprint('user_drugs', __name__)
 
-@bp.post('/meds')
-def add_meds():
+@bp.post('/drugs')
+def add_drugs():
 
   data = request.get_json()
   user_id = data.get('user_id')
@@ -17,8 +17,8 @@ def add_meds():
   if not user_id or not item_type:
     return jsonify({'error' : '필수 항목을 모두 입력해 주세요.'}), 400
   
-  if item_type not in ['drug', 'supplement']:
-    return jsonify({'error': 'item_type은 drug 또는 supplement여야 합니다.'}), 400
+  if item_type not in ['medicine', 'supplement']:
+    return jsonify({'error': 'item_type은 medicine 또는 supplement여야 합니다.'}), 400
 
   if taken_str.lower() == 'true':
     taken = True
@@ -26,24 +26,24 @@ def add_meds():
     taken = False
 
   # DB 저장
-  new_meds = User_meds(
+  new_drugs = User_drugs(
     user_id=int(user_id),
     item_type = item_type,
     taken = taken,
     predicted_name = predicted_name,
   )
-  print(new_meds)
-  db.session.add(new_meds)
+  print(new_drugs)
+  db.session.add(new_drugs)
   db.session.commit()
   
   return jsonify({
     'message' : '약 정보 등록 완료',
     'med' : {
-      'id' : new_meds.id,
-      'user_id' : new_meds.user_id,
-      'item_type' : new_meds.item_type,
-      'taken' : new_meds.taken,
-      'predicted_name' : new_meds.predicted_name   
+      'id' : new_drugs.id,
+      'user_id' : new_drugs.user_id,
+      'item_type' : new_drugs.item_type,
+      'taken' : new_drugs.taken,
+      'predicted_name' : new_drugs.predicted_name   
     } 
 }), 200
 
@@ -59,7 +59,7 @@ def update_meds(med_id):
   if not new_name:
     return jsonify({'error' : '수정할 약의 이름을 입력해 주세요.'}), 400
 
-  med = User_meds.query.get(med_id)
+  med = User_drugs.query.get(med_id)
 
   if not med:
     return jsonify({'error' : '해당 약 정보를 찾지 못했습니다.'}), 400
@@ -74,9 +74,9 @@ def update_meds(med_id):
 
 
 # # get으로 이전에 저장한 약 리스트 불러오기
-@bp.get('/meds/<int:user_id>')
+@bp.get('/drugs/<int:user_id>')
 def get_mymeds(user_id):
-  meds = User_meds.query.filter_by(user_id=user_id).all()
+  meds = User_drugs.query.filter_by(user_id=user_id).all()
 
   if not meds:
     return jsonify({'error' : '조회된 약이 없습니다.', 'meds' : []}), 400
@@ -98,17 +98,17 @@ def get_mymeds(user_id):
     }), 200
 
 #  delete로 다 먹은 약 삭제하기
-@bp.delete('/meds/<int:med_id>')
-def delete_med(med_id):
-  med = User_meds.query.get(med_id)
+@bp.delete('/drugs/<int:drug_id>')
+def delete_med(drug_id):
+  drug = User_drugs.query.get(drug_id)
 
-  if not med:
+  if not drug:
     return jsonify({ 'error' : '해당 약을 찾을 수 없습니다'}), 400
   
-  if med.user_id != current_user.id:
+  if drug.user_id != current_user.id:
     return jsonify({'error': '본인 약만 삭제할 수 있습니다.'}), 403
   
-  db.session.delete(med)
+  db.session.delete(drug)
   db.session.commit()
 
-  return jsonify({'message': f'{med.confirmed_name or med.predicted_name} (id={med_id}) 삭제 완료'}), 200
+  return jsonify({'message': f'{drug.confirmed_name or drug.predicted_name} (id={drug_id}) 삭제 완료'}), 200

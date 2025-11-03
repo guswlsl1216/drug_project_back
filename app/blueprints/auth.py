@@ -4,7 +4,7 @@ from ..extensions import db
 from ..models.user import User
 from ..utils.db_helpers import safe_commit
 from ..utils.response import make_response
-from ..utils.validators import is_valid_email, is_valid_password, is_unique_user
+from ..utils.validators import validate_email, is_valid_password, is_unique_user
 
 bp = Blueprint('auth',__name__)
 
@@ -37,7 +37,7 @@ def signup():
       )
     
     # 이메일 형식 체크
-    if not is_valid_email(email):
+    if not validate_email(email):
       return make_response(
         ok=False,
         message='이메일 형식이 올바르지 않습니다.',

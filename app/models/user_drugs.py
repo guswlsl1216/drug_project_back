@@ -4,8 +4,8 @@ from sqlalchemy import Enum
 import os
 from ..config import Config
 
-class User_meds(db.Model):
-  __tablename__ ='user_meds'
+class User_drugs(db.Model):
+  __tablename__ ='user_drugs'
 
   id = db.Column(db.Integer, primary_key=True)
   user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
