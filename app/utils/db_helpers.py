@@ -1,5 +1,5 @@
 # 데이터베이스 관련 공통 처리 
-# 재 사용성 : 회원 가입, 수정, 탈퇴, 계정 복구, 기뷰, 댓글, 장바구니, 주문, 결제 기록 저장 등 재 사용 가능 
+# 재 사용성 : 회원 가입, 수정, 탈퇴, 계정 복구, 리뷰, 댓글, 장바구니, 주문, 결제 기록 저장 등 재 사용 가능 
 from sqlalchemy.exc import IntegrityError
 from ..extensions import db 
 

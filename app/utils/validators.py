@@ -12,7 +12,10 @@ r"" -> raw string 역슬래쉬(\)를 특별 처리하지 않고 있는 그대로
 @[^@]+ -> 도메인 이름 ( ex : @naver )
 \. -> 마침표
 """
-def is_valid_email(email: str) -> bool :
+def validate_email(email: str):
+  errors = []
+ 
+
   return bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
 
 # 비밀번호가 8자 이상인지, 문자+숫자 포함 여부 검사

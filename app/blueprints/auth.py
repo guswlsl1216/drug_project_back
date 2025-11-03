@@ -5,7 +5,6 @@ from ..models.user import User
 from ..utils.db_helpers import safe_commit
 from ..utils.response import make_response
 from ..utils.validators import is_valid_email, is_valid_password, is_unique_user
-from flask_login import login_user, login_required, current_user, logout_user
 
 bp = Blueprint('auth',__name__)
 
@@ -22,7 +21,10 @@ def signup():
     email = data.get('email')
     created_at = data.get('created_at')
     updated_at = data.get('updated_at')
-    deleted_at = data.get('deleted_at')
+    age = data.get('age')
+    gender = data.get('gender')
+    address = data.get('address')
+    detailed_address = data.get('detailed_address')
 
     # 필수 입력
     fields = ['username','password','email','nickname']
@@ -67,7 +69,10 @@ def signup():
       nickname=nickname,
       created_at=created_at,
       updated_at=updated_at,
-      deleted_at=deleted_at
+      age=age,
+      gender=gender,
+      address=address,
+      detailed_address=detailed_address
     )
     user.set_password(password) # 입력받은 비밀번호를 안전하게 hash해서 저장
     db.session.add(user) # DB에 저장
