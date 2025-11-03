@@ -51,8 +51,8 @@ def get_metadata():
     return target_db.metadata
 
 AUTOMAP_SKIP = {
-    "health_products", "drug_products", 
-    "drug_contraindications", "health_drug_interaction"
+    "supps_products", "meds_products", 
+    "drug_contraindications", "supps_meds_interaction"
 }
 
 def include_object(object, name, type_, reflected, compare_to):
