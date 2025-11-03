@@ -21,7 +21,8 @@ def signup():
     email = data.get('email')
     created_at = data.get('created_at')
     updated_at = data.get('updated_at')
-    age = data.get('age')
+    age_str = data.get('age','').strip() # 공백 제거
+    age = int(age_str) if age_str.isdigit() else None # 숫자가 아니면 None 처리
     gender = data.get('gender')
     address = data.get('address')
     detailed_address = data.get('detailed_address')
@@ -41,7 +42,7 @@ def signup():
     if email_errors:
       return make_response(
         ok=False,
-        message=''.join(email_errors),
+        message=' '.join(email_errors),
         status=400
       )
 
@@ -50,7 +51,7 @@ def signup():
     if password_errors:
       return make_response(
         ok=False,
-        message='비밀번호 조건이 올바르지 않습니다.'.join(password_errors),
+        message='비밀번호 조건이 올바르지 않습니다.'+" ".join(password_errors),
         status=400
       )
     
@@ -106,3 +107,5 @@ def signup():
       message='서버 내부 오류가 발생했습니다.',
       status=500
     )
+  
+  

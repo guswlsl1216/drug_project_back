@@ -14,8 +14,13 @@ r"" -> raw string 역슬래쉬(\)를 특별 처리하지 않고 있는 그대로
 """
 def validate_email(email: str):
   errors = []
+
+  # email = email.strip() # 공백 제거
+
   if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
     errors.append("이메일 형식이 올바르지 않습니다. ex) test@example.com")
+  if " " in email:
+    errors.append("이메일에 공백을 포함 할 수 없습니다.")
 
   return errors
 
@@ -28,6 +33,8 @@ def validate_password(password: str) :
     errors.append("숫자를 최소 1개 포함해야 합니다.")
   if not re.search(r"[A-Za-z]", password) :
     errors.append("문자를 최소 1개 포함해야 합니다.")
+  if re.search(r"\s",password):
+    errors.append("비밀번호에 공백은 포함 할 수 없습니다.")
   return errors
 
 # 아이디,이메일,닉네임이 이미 존재하는지 확인
