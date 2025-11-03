@@ -14,13 +14,21 @@ r"" -> raw string 역슬래쉬(\)를 특별 처리하지 않고 있는 그대로
 """
 def validate_email(email: str):
   errors = []
- 
+  if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+    errors.append("이메일 형식이 올바르지 않습니다. ex) test@example.com")
 
-  return bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
+  return errors
 
 # 비밀번호가 8자 이상인지, 문자+숫자 포함 여부 검사
-def is_valid_password(password: str) -> bool:
-  return len(password) >= 8 and bool(re.search(r"[0-9]", password)) and bool(re.search(r"[A-Za-z]", password))
+def validate_password(password: str) :
+  errors = []
+  if len(password) < 8:
+    errors.append("비밀번호는 최소 8자 이상이어야 합니다.")
+  if not re.search(r"[0-9]", password) :
+    errors.append("숫자를 최소 1개 포함해야 합니다.")
+  if not re.search(r"[A-Za-z]", password) :
+    errors.append("문자를 최소 1개 포함해야 합니다.")
+  return errors
 
 # 아이디,이메일,닉네임이 이미 존재하는지 확인
 def is_unique_user(username,email,nickname):
