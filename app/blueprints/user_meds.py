@@ -8,7 +8,7 @@ bp = Blueprint('user_meds', __name__)
 @bp.post('/meds')
 def add_meds():
 
-  data = request.json()
+  data = request.get_json()
   user_id = data.get('user_id')
   item_type = data.get('item_type')
   taken_str = data.get('taken', 'false')
@@ -101,12 +101,12 @@ def get_mymeds(user_id):
 @bp.delete('/meds/<int:med_id>')
 def delete_med(med_id):
   med = User_meds.query.get(med_id)
-  
-  if med.user_id != current_user.id:
-    return jsonify({'error': '본인 약만 삭제할 수 있습니다.'}), 403
 
   if not med:
     return jsonify({ 'error' : '해당 약을 찾을 수 없습니다'}), 400
+  
+  if med.user_id != current_user.id:
+    return jsonify({'error': '본인 약만 삭제할 수 있습니다.'}), 403
   
   db.session.delete(med)
   db.session.commit()
