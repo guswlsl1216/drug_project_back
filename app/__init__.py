@@ -20,11 +20,11 @@ def create_app():
     })
 
   from .blueprints.routine import bp as routine_bp
-  from .blueprints.user_meds import bp as user_meds_bp
+  from .blueprints.user_drugs import bp as user_drugs_bp
   from .blueprints.auth import bp as auth_bp
 
   app.register_blueprint(routine_bp, url_prefix='/routine')
-  app.register_blueprint(user_meds_bp, url_prefix='/user_meds')
+  app.register_blueprint(user_drugs_bp, url_prefix='/user_drugs')
   app.register_blueprint(auth_bp, url_prefix='/auth')
 
   return app
