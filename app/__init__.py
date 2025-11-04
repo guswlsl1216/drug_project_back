@@ -22,9 +22,11 @@ def create_app():
   from .blueprints.routine import bp as routine_bp
   from .blueprints.user_meds import bp as user_meds_bp
   from .blueprints.auth import bp as auth_bp
+  from .blueprints.analyze_result import bp as analyze_result_bp
 
   app.register_blueprint(routine_bp, url_prefix='/routine')
   app.register_blueprint(user_meds_bp, url_prefix='/user_meds')
   app.register_blueprint(auth_bp, url_prefix='/auth')
+  app.register_blueprint(analyze_result_bp, url_prefix='/result')
 
   return app
