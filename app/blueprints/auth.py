@@ -4,7 +4,7 @@ from ..extensions import db
 from ..models.user import User
 from ..utils.db_helpers import safe_commit
 from ..utils.response import make_response
-from ..utils.validators import is_valid_email, is_valid_password, is_unique_user
+from ..utils.validators import validate_email, validate_password, is_unique_user
 
 bp = Blueprint('auth',__name__)
 
@@ -21,7 +21,8 @@ def signup():
     email = data.get('email')
     created_at = data.get('created_at')
     updated_at = data.get('updated_at')
-    age = data.get('age')
+    age_str = data.get('age','').strip() # 공백 제거
+    age = int(age_str) if age_str.isdigit() else None # 숫자가 아니면 None 처리
     gender = data.get('gender')
     address = data.get('address')
     detailed_address = data.get('detailed_address')
@@ -37,18 +38,20 @@ def signup():
       )
     
     # 이메일 형식 체크
-    if not is_valid_email(email):
+    email_errors = validate_email(email)
+    if email_errors:
       return make_response(
         ok=False,
-        message='이메일 형식이 올바르지 않습니다.',
+        message=' '.join(email_errors),
         status=400
       )
 
     # 비밀번호 유효성 체크
-    if not is_valid_password(password):
+    password_errors = validate_password(password)
+    if password_errors:
       return make_response(
         ok=False,
-        message='비밀번호 조건이 올바르지 않습니다.',
+        message='비밀번호 조건이 올바르지 않습니다.'+" ".join(password_errors),
         status=400
       )
     
@@ -104,3 +107,5 @@ def signup():
       message='서버 내부 오류가 발생했습니다.',
       status=500
     )
+  
+  
