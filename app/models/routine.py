@@ -22,6 +22,6 @@ class Routine(db.Model):
       'drug_category':'영양제', #test self.drug.category
       'eattime':self.eattime,
       'count':self.count,
-      'start_date':self.start_date.strftime('%m-%d') if self.start_date else None,
-      'end_date':self.end_date.strftime('%m-%d') if self.end_date else None
+      'start_date':self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
+      'end_date':self.end_date.strftime('%Y-%m-%d') if self.end_date else None
     }

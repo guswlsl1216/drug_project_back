@@ -47,24 +47,14 @@ def updateRoutine(routineId):
   if not data:
     return jsonify({'ok':False, 'message':'수신오류'}),400
   current_routine=db.session.query(Routine).get(routineId)
-  
-  #drugName = data.get('drugName')
-  #drug = db.session.query(drug).get(drugName)
-  #drug_id=drug.drug_id
-  
-  #Postman Test drug_id
-  drug_id=data.get('drug_id')
 
   eattime=data.get('eattime')
   start_date=data.get('start_date')
   end_date=data.get('end_date')
-  count=data.get('count')
 
-  current_routine.drug_id=drug_id
   current_routine.eattime=eattime
   current_routine.start_date=start_date
   current_routine.end_date=end_date
-  current_routine.count=count
 
   db.session.add(current_routine)
   db.session.commit()
@@ -75,12 +65,13 @@ def updateRoutine(routineId):
 @bp.post('/performed/<routineId>')
 def performed(routineId):
   data=request.get_json()
+  date = data.get('date')
   performed_times = data.get('performed_times')
 
-  routine_log = Routine_log.query.filter_by(date=datetime.now().date(), routine_id=routineId).first()
+  routine_log = Routine_log.query.filter_by(date=date, routine_id=routineId).first()
 
   if not routine_log:
-    routine_log = Routine_log(routine_id=routineId, date=datetime.now().date(), performed_times=performed_times)
+    routine_log = Routine_log(routine_id=routineId, date=date, performed_times=performed_times, count=performed_times.count(True))
   else:
     routine_log.performed_times=performed_times
     routine_log.count=performed_times.count(True)
@@ -92,28 +83,20 @@ def performed(routineId):
 #루틴리스트 불러오기
 @bp.get('/getRoutine')
 def getRoutine():
-  data=request.get_json()
-  request_date=data.get('request_date')
-  
   #test current_user.id
   user_id = 1
   routine_list=[]
-  routines = Routine.query.filter(
-    Routine.author_id == user_id,
-    Routine.start_date <= request_date,
-    Routine.end_date >= request_date
-  ).all()
+  routines = Routine.query.filter(Routine.author_id == user_id).all()
   for routine in routines:
     routine_list.append(routine.to_dict())
   
   logs={} #key=routine.id value=log객체
   for routine in routines:
-    log = Routine_log.query.filter(
-      Routine_log.routine_id == routine.id,
-      Routine_log.date == request_date
-    ).first()
-    if not log:
-      logs[routine.id]=None
-      continue
-    logs[routine.id]=log.performed_times
+    log = Routine_log.query.filter(Routine_log.routine_id == routine.id).all()
+    logs[routine.id]={}
+    if log:
+      for i in log:
+        date, pr = i.to_dict()
+        logs[routine.id][date] = pr
+
   return jsonify({'ok':True, 'routine':routine_list, 'log':logs}),200
