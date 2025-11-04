@@ -1,21 +1,17 @@
 from flask import Blueprint, request, jsonify, current_app
-from ..extensions import db, jwt
+from ..extensions import db
 from ..models.user import User
 from ..utils.response import make_response
-from werkzeug.security import check_password_hash
-from datetime import datetime, timedelta, timezone
 from flask_jwt_extended import create_access_token
 
 bp = Blueprint('login',__name__)
 
-utc_now = datetime.now(timezone.utc) # 전 세계 공통 표준 시간
-
 @bp.post('/login')
 def login():
-
+ 
   try:
     data = request.get_json()
-
+   
     username = data.get('username')
     password = data.get('password')
 
@@ -50,17 +46,6 @@ def login():
       )
     
     access_token = create_access_token(identity=user.id)
-    
-    payload = {
-      "user_id":user.id,
-      "exp":datetime.utc_now() + timedelta(hours=2) # 만료시간 (2시간)
-    }
-
-    token = jwt.encode(
-      payload,
-      current_app.config["SECRET_KEY"],
-      algorithm="HS256"
-    )
     
     return make_response(
       ok=True,
