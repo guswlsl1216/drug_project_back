@@ -1,5 +1,5 @@
 from flask import Flask
-from .extensions import db, migrate, login_manager, cors
+from .extensions import db, migrate, login_manager, cors, jwt
 from .config import Config
 
 
@@ -8,6 +8,7 @@ def create_app():
   app.config.from_object(Config)
 
   db.init_app(app)
+  jwt.init_app(app)
   migrate.init_app(app, db)
   cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
   login_manager.init_app(app)
@@ -19,9 +20,13 @@ def create_app():
   from .blueprints.routine import bp as routine_bp
   from .blueprints.user_meds import bp as user_meds_bp
   from .blueprints.auth import bp as auth_bp
+  from .blueprints.login import bp as login_bp
+  from .blueprints.protected import bp as protected_bp
 
   app.register_blueprint(routine_bp, url_prefix='/routine')
   app.register_blueprint(user_meds_bp, url_prefix='/user_meds')
   app.register_blueprint(auth_bp, url_prefix='/auth')
+  app.register_blueprint(login_bp, url_prefix='/login')
+  app.register_blueprint(protected_bp, url_prefix='/user_protected')
 
   return app

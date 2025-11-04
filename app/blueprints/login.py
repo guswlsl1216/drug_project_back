@@ -1,12 +1,14 @@
 from flask import Blueprint, request, jsonify, current_app
-from ..extensions import db
+from ..extensions import db, jwt
 from ..models.user import User
 from ..utils.response import make_response
 from werkzeug.security import check_password_hash
-import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from flask_jwt_extended import create_access_token
 
 bp = Blueprint('login',__name__)
+
+utc_now = datetime.now(timezone.utc) # 전 세계 공통 표준 시간
 
 @bp.post('/login')
 def login():
@@ -25,6 +27,7 @@ def login():
       )
     
     user = User.query.filter_by(username=username).first()
+
     if not user:
       return make_response(
         ok=False,
@@ -32,7 +35,7 @@ def login():
         status=400
       )
     
-    if not user and user.deleted_at is not None:
+    if user.deleted_at is not None: # 탈퇴가 None이 아닌 유저(탈퇴를 누름)
       return make_response(
         ok=False,
         message='이미 탈퇴한 사용자입니다.',
@@ -46,9 +49,11 @@ def login():
         status=400
       )
     
+    access_token = create_access_token(identity=user.id)
+    
     payload = {
       "user_id":user.id,
-      "exp":datetime.now() + timedelta(hours=2) # 만료시간 (2시간)
+      "exp":datetime.utc_now() + timedelta(hours=2) # 만료시간 (2시간)
     }
 
     token = jwt.encode(
@@ -60,6 +65,7 @@ def login():
     return make_response(
       ok=True,
       message='로그인 성공하였습니다.',
+      data={"access_token": access_token},
       status=200
     )
   
