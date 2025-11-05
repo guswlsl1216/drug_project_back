@@ -38,10 +38,10 @@ def login():
         status=400
       )
     
-    if not user.check_password(password):
+    if user and not user.check_password(password):
       return make_response(
         ok=False,
-        message='비밀번호가 일치하지 않습니다.',
+        message='아이디 또는 비밀번호가 일치하지 않습니다.',
         status=400
       )
     

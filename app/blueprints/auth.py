@@ -26,6 +26,7 @@ def signup():
     gender = data.get('gender')
     address = data.get('address')
     detailed_address = data.get('detailed_address')
+    tel = data.get('tel')
 
     # 필수 입력
     fields = ['username','password','email','nickname']
