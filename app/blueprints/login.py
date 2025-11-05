@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from ..extensions import db
 from ..models.user import User
 from ..utils.response import make_response
-from flask_jwt_extended import create_access_token
+from ..utils.services_auth import authenticate_user, access_token, get_user_id, refresh_token
 
 bp = Blueprint('login',__name__)
 
@@ -22,7 +22,7 @@ def login():
         status=400
       )
     
-    user = User.query.filter_by(username=username).first()
+    user = authenticate_user(username,password)
 
     if not user:
       return make_response(
@@ -45,7 +45,8 @@ def login():
         status=400
       )
     
-    access_token = create_access_token(identity=user.id)
+    access_token = access_token(user)
+    refresh = refresh_token(user)
     
     return make_response(
       ok=True,
