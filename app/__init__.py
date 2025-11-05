@@ -1,7 +1,8 @@
-from flask import Flask
+from flask import Flask, app
 from .extensions import db, migrate, login_manager, cors
 from .config import Config
-
+from .blueprints.Analyze import bp as medicine_bp
+app.register_blueprint(medicine_bp)
 
 def create_app():
   app = Flask(__name__)
@@ -14,7 +15,7 @@ def create_app():
 
   with app.app_context():
     from .models import auto as auto_models
-    auto_models.prepare_automap(only={"health_products", "drug_products"})
+    auto_models.prepare_automap(only={"health_products", "drug_products","drug_contraindications"})
 
   from .blueprints.routine import bp as routine_bp
   from .blueprints.auth import bp as auth_bp
