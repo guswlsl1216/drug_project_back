@@ -100,3 +100,9 @@ def getRoutine():
         logs[routine.id][date] = pr
 
   return jsonify({'ok':True, 'routine':routine_list, 'log':logs}),200
+
+#약/영양제 불러오기
+@bp.get('/getDrug/<drugId>')
+def getDrug(drugId):
+  if(drugId>100000):
+    drug = supps_products
