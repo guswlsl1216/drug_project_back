@@ -1,5 +1,5 @@
 from ..models.user import User
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, create_refresh_token
 
 # 아이디와 비밀번호로 인증, 성공 시 User 객체를 반환
 def authenticate_user(username : str, password: str):
@@ -19,11 +19,11 @@ def user_access_token(user):
   }
   return create_access_token(identity=user.id, additional_claims=additional_claims) # user.id : User 객체 안의 primaryKey값 (DB컬럼)
 
-# user_id로 DB 조회
-def get_user_id(user_id): # user_id : user.id값을 전달받거나 저장한 숫자 값 (함수 매개변수)
-  return User.query.get(user_id)
+# Access Token 발급 (JWT, identity에 user.id 사용)
+def user_access_token(user): 
+  return create_access_token(identity=str(user.id))
 
-# Refresh_token 발급 함수
+# Refresh Token 발급 (JWT, identity에 user.id 사용)
 def user_refresh_token(user):
-  return create_access_token(identity=user.id)
+  return create_refresh_token(identity=str(user.id))
 
