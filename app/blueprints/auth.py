@@ -20,13 +20,13 @@ def signup():
     nickname = data.get('nickname')
     email = data.get('email')
     created_at = data.get('created_at')
-    updated_at = data.get('updated_at')
     age_str = data.get('age','').strip() # 공백 제거
     age = int(age_str) if age_str.isdigit() else None # 숫자가 아니면 None 처리
     gender = data.get('gender')
     address = data.get('address')
     detailed_address = data.get('detailed_address')
     tel = data.get('tel')
+    role = data.get('role')
 
     # 필수 입력
     fields = ['username','password','email','nickname']
@@ -72,11 +72,12 @@ def signup():
       email=email, 
       nickname=nickname,
       created_at=created_at,
-      updated_at=updated_at,
       age=age,
       gender=gender,
       address=address,
-      detailed_address=detailed_address
+      detailed_address=detailed_address,
+      tel=tel,
+      role=role
     )
     user.set_password(password) # 입력받은 비밀번호를 안전하게 hash해서 저장
     db.session.add(user) # DB에 저장

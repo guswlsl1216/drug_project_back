@@ -11,7 +11,7 @@ def authenticate_user(username : str, password: str):
   return None
 
 # User 객체로 access_token 생성
-def access_token(user):
+def user_access_token(user):
   # identity,iat,exp는 자동 포함
   # additional_claims : payload를 넣는 공식 매개 변수
   additional_claims = {
@@ -24,5 +24,6 @@ def get_user_id(user_id): # user_id : user.id값을 전달받거나 저장한 �
   return User.query.get(user_id)
 
 # Refresh_token 발급 함수
-def refresh_token(user):
-  return create_access_token
+def user_refresh_token(user):
+  return create_access_token(identity=user.id)
+
