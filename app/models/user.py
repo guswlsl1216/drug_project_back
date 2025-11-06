@@ -18,6 +18,7 @@ class User(db.Model, UserMixin):
   address = db.Column(db.String(200), nullable=True)
   detailed_address = db.Column(db.String(200), nullable=True)
   role = db.Column(db.String(20), nullable=False, default="user")
+  point = db.Column(db.Integer, nullable=True)
 
   def set_password(self, password): # 암호화
     self.password_hash = generate_password_hash(password)
