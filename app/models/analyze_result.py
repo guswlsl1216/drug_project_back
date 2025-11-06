@@ -7,12 +7,12 @@ class Analyze_result(db.Model):
 
   id = db.Column(db.Integer, primary_key=True)
   status = db.Column(db.Integer, nullable=False)
-  meds_ingredients = db.Column(JSON)
+  meds = db.Column(JSON)
   supps = db.Column(JSON)
   analysis_date = db.Column(db.DateTime, default=datetime.now)
   duplicates = db.Column(JSON)
   interactions = db.Column(JSON)
-  user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+  user_id = db.Column(db.Integer, nullable=False) # db.ForeignKey('users.id')
   # user = db.relationship('User', backref=db.backref('analyze_results', lazy=True))
 
 
@@ -20,9 +20,10 @@ def to_dict(self):
   return {
     'id':self.id,
     'status':self.status,
-    'meds_ingredients':self.meds_ingredients,
+    'meds':self.meds,
     'supps':self.supps,
     'analysis_date':self.analysis_date.strftime('%Y-%m-%d %H:%M:%S'),
     'duplicates':self.duplicates,
-    'interactions':self.interactions
+    'interactions':self.interactions,
+    'user_id':self.user_id
   }
