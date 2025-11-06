@@ -4,8 +4,12 @@ from flask_login import current_user, login_required
 from app import db
 from app.models.routine import Routine
 from app.models.routine_log import Routine_log
+from ..models.auto import get_class
+from sqlalchemy import func
 
 bp = Blueprint('routine', __name__)
+SP = get_class("supps_products") 
+MP = get_class("meds_products") 
 
 #루틴 추가
 @bp.post('/addRoutine')
@@ -101,8 +105,37 @@ def getRoutine():
 
   return jsonify({'ok':True, 'routine':routine_list, 'log':logs}),200
 
-#약/영양제 불러오기
-@bp.get('/getDrug/<drugId>')
-def getDrug(drugId):
-  if(drugId>100000):
-    drug = supps_products
+# #약/영양제 불러오기
+# @bp.get('/getDrug/<drugId>')
+# def getDrug(drugId):
+#   if(drugId>100000):
+#     drug = supps_products
+
+
+# 복용약/ 영양제 검색 기능 ( 두 가지 구분은 프론트에서 요청할 때 구분할거임 )
+@bp.get('/search')
+def searchDrug():
+
+  search_name = request.args.get('q', '').strip()
+  search_type = request.args.get('type')
+
+  if not search_type or search_type not in ['supps', 'meds']:
+    return jsonify({ 'error' : 'type은 반드시 meds 또는 supps 여야 합니다. '}), 400
+  
+  model = SP if search_type == 'supps' else MP
+
+  normalized_search_name = search_name.replace(' ', '').lower()
+  search_keyword = f"%{normalized_search_name}%"
+
+  column_name = model.PRDLST_NM if search_type == 'supps' else model.ITEM_NAME   
+
+  results = (
+    db.session.query(model.id, column_name)
+    .filter(
+      func.lower(func.replace(column_name, ' ', '')).like(search_keyword)
+    ).all()
+  )
+
+  data = [{ "id" : r[0], "name" : r[1]} for r in results]
+  return jsonify(data)
+  
