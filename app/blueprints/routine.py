@@ -4,6 +4,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models.routine import Routine
 from app.models.routine_log import Routine_log
+from app.models.auto import get_class
 
 bp = Blueprint('routine', __name__)
 
@@ -67,14 +68,19 @@ def performed(routineId):
   data=request.get_json()
   date = data.get('date')
   performed_times = data.get('performed_times')
-
+  routine = Routine.query.filter_by(id=routineId)
+  if performed_times.count(True) == routine.count:
+    count='good'
+  else:
+    count='danger'
+  
   routine_log = Routine_log.query.filter_by(date=date, routine_id=routineId).first()
 
   if not routine_log:
-    routine_log = Routine_log(routine_id=routineId, date=date, performed_times=performed_times, count=performed_times.count(True))
+    routine_log = Routine_log(routine_id=routineId, date=date, performed_times=performed_times, count=count)
   else:
     routine_log.performed_times=performed_times
-    routine_log.count=performed_times.count(True)
+    routine_log.count=count
     
   db.session.add(routine_log)
   db.session.commit()
@@ -91,18 +97,27 @@ def getRoutine():
     routine_list.append(routine.to_dict())
   
   logs={} #key=routine.id value=log객체
+  counts={} #key=routine.id value=count
   for routine in routines:
     log = Routine_log.query.filter(Routine_log.routine_id == routine.id).all()
     logs[routine.id]={}
+    counts[routine.id]={}
     if log:
       for i in log:
         date, pr = i.to_dict()
         logs[routine.id][date] = pr
-
-  return jsonify({'ok':True, 'routine':routine_list, 'log':logs}),200
+        counts[routine.id][date] = i.count
+  return jsonify({'ok':True, 'routine':routine_list, 'log':logs, 'counts':counts}),200
 
 #약/영양제 불러오기
 @bp.get('/getDrug/<drugId>')
 def getDrug(drugId):
-  if(drugId>100000):
-    drug = supps_products
+  SP = get_class("supps_products")
+  MP = get_class("meds_products")
+
+  if(int(drugId)>100000):
+    drug = db.session.query(SP).filter(SP.id == drugId).first()
+    return jsonify({'ok':True, 'drugName':drug.PRDLST_NM, 'method':drug.NTK_MTHD, 'notice':drug.IFTKN_ATNT_MATR_CN, 'effect':drug.PRIMARY_FNCLTY})
+  else:
+    drug = db.session.query(MP).filter(MP.id == drugId).first()
+    return jsonify({'ok':True, 'drugName':drug.ITEM_NAME, 'method':drug.UD_DOC_TXT, 'notice':drug.NB_DOC_TXT, 'effect':drug.EE_DOC_TXT})
