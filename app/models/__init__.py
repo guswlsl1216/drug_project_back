@@ -4,3 +4,10 @@ from . import user
 from . import user_drugs
 from . import test
 from . import analyze_result
+from . import goods
+from . import review
+from . import cart
+from . import payment
+from . import favorite
+from . import order
+from . import orderitem
