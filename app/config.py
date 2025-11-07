@@ -16,7 +16,7 @@ class Config:
   JWT_ACCESS_COOKIE_PATH = "/"
   JWT_REFRESH_COOKIE_PATH = "/refresh"
   JWT_COOKIE_SECURE = False # 개발용 (후추 True로 전환 예정)
-  JWT_COOKIE_SAMESITE = "None"
+  JWT_COOKIE_SAMESITE = "Lax"
   JWT_COOKIE_CSRF_PROTECT = True 
   JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=2) # accessToken은 2시간
   JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7) # refreshToken은 7일

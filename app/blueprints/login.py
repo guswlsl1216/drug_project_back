@@ -96,6 +96,7 @@ def refresh():
   set_access_cookies(res, new_access_token) # 쿠키에 새 accessToken 저장
   return res
 
+@jwt_required()
 @bp.get("/check")
 def login_check():
   try:
