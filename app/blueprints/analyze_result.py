@@ -86,7 +86,7 @@ def save_result():
     supps = result.get('supps'),
     duplicates = result.get('duplicates'),
     interactions = result.get('interactions'),
-    user_id = 1 # test
+    user_id = 1 # current_user.id
   )
 
   db.session.add(result_data)
@@ -104,13 +104,21 @@ def save_result():
 def get_history():
   page = request.args.get('page', type=int, default=1)
 
-  history = Analyze_result.query\
-              .filter(Analyze_result.user_id == current_user.id)\
-              .order_by(Analyze_result.analysis_date.desc())
+  history = Analyze_result.query.order_by(Analyze_result.analysis_date.desc())
+
+  # history = Analyze_result.query\
+  #             .filter(Analyze_result.user_id == current_user.id)\
+  #             .order_by(Analyze_result.analysis_date.desc())
   
-  history = history.paginate(page=page, per_page=10)
+  history = history.paginate(page=page, per_page=5)
+
+  pageNumbers = [page for page in history.iter_pages()]
 
   return jsonify({
     'ok':True,
-    'history':[h.to_dict() for h in history]
+    'history':[h.to_dict() for h in history.items],
+    'total':history.total,
+    'has_prev':history.has_prev,
+    'has_next':history.has_next,
+    'pageNumbers':pageNumbers
   })
