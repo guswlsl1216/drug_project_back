@@ -26,13 +26,15 @@ def addRoutine():
   author_id=data.get('author_id')
 
   eattime=data.get('eattime')
+  note=data.get('note')
   start_date=data.get('start_date')
   end_date=data.get('end_date')
   count=eattime.count(True)
   
-  routine = Routine(drug_id=drug_id, author_id=author_id, eattime=eattime, start_date=start_date, end_date=end_date, count=count)
+  
+  routine = Routine(drug_id=drug_id, author_id=author_id, eattime=eattime, note=note, start_date=start_date, end_date=end_date, count=count)
   db.session.add(routine)
-  db.session.commit()
+  db.session.commit()      
 
   return jsonify({'ok':True, 'message':'등록완료'}),200
 
@@ -137,5 +139,9 @@ def searchDrug():
   )
 
   data = [{ "id" : r[0], "name" : r[1]} for r in results]
-  return jsonify(data)
+  return jsonify({
+        'success': True,
+        # 프론트엔드가 'medicines' 키를 예상하므로 여기에 데이터를 담습니다.
+        'medicines': data 
+  })
   
