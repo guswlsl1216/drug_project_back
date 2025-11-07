@@ -52,7 +52,7 @@ def login():
 
     user_info = {
       "id":user.id,
-      "username":user.username,
+      "nickname":user.nickname,
       "email":user.email,
       "tel":user.tel
     }
@@ -66,7 +66,6 @@ def login():
 
     # 쿠키에 토큰 저장
     set_access_cookies(res, access_token)
-   
     set_refresh_cookies(res, refresh_token)
 
 

@@ -20,3 +20,6 @@ class Config:
   JWT_COOKIE_CSRF_PROTECT = True 
   JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=2) # accessToken은 2시간
   JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7) # refreshToken은 7일
+
+  SESSION_COOKIE_SAMESITE = 'None'
+  SESSION_COOKIE_SECURE = False

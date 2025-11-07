@@ -20,6 +20,11 @@ class User(db.Model, UserMixin):
   role = db.Column(db.String(20), nullable=False, default="user")
   point = db.Column(db.Integer, nullable=True)
   tel = db.Column(db.Integer, nullable=True)
+  point = db.Column(db.Integer, nullable=True, default=0)
+  goods = db.relationship('Goods', back_populates='user')
+  reviews = db.relationship('Review', back_populates='user', cascade='all, delete-orphan')
+  carts = db.relationship('Cart', back_populates='user', cascade='all, delete-orphan')
+  favorites = db.relationship('Favorite', back_populates='user', cascade='all, delete-orphan')
 
   def set_password(self, password): # 암호화
     self.password_hash = generate_password_hash(password)
