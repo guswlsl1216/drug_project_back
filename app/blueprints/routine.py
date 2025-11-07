@@ -65,29 +65,34 @@ def updateRoutine(routineId):
 #루틴 수행
 @bp.post('/performed/<routineId>')
 def performed(routineId):
-  data=request.get_json()
-  date = data.get('date')
-  performed_times = data.get('performed_times')
-  routine = Routine.query.filter_by(id=routineId).first()
-  print(performed_times.count(True))
-  if performed_times.count(True) == 0:
-    count='danger'
-  elif performed_times.count(True) == routine.count:
-    count='good'
-  else:
-    count='warning'
-  
-  routine_log = Routine_log.query.filter_by(date=date, routine_id=routineId).first()
-
-  if not routine_log:
-    routine_log = Routine_log(routine_id=routineId, date=date, performed_times=performed_times, count=count)
-  else:
-    routine_log.performed_times=performed_times
-    routine_log.count=count
+  try:
+    data=request.get_json()
+    date = data.get('date')
+    performed_times = data.get('performed_times')
+    routine = Routine.query.filter_by(id=routineId).first()
+    print(performed_times.count(True))
+    if performed_times.count(True) == 0:
+      count='danger'
+    elif performed_times.count(True) == routine.count:
+      count='good'
+    else:
+      count='warning'
     
-  db.session.add(routine_log)
-  db.session.commit()
-  return jsonify({'ok':True, 'message':'done'}),200
+    routine_log = Routine_log.query.filter_by(date=date, routine_id=routineId).first()
+
+    if not routine_log:
+      routine_log = Routine_log(routine_id=routineId, date=date, performed_times=performed_times, count=count)
+      db.session.add(routine_log)
+    else:
+      routine_log.performed_times=performed_times
+      routine_log.count=count
+    
+    db.session.commit()
+    return jsonify({'ok':True, 'message':'done'}),200
+  except Exception as e:
+        db.session.rollback()  # 에러 시 롤백
+        print("에러에러에러")
+        return jsonify({"error": str(e)}), 500
 
 #루틴리스트 불러오기
 @bp.get('/getRoutine')
