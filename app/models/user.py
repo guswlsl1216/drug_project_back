@@ -19,6 +19,7 @@ class User(db.Model, UserMixin):
   detailed_address = db.Column(db.String(200), nullable=True)
   role = db.Column(db.String(20), nullable=False, default="user")
   point = db.Column(db.Integer, nullable=True)
+  tel = db.Column(db.Integer, nullable=True)
 
   def set_password(self, password): # 암호화
     self.password_hash = generate_password_hash(password)
@@ -49,5 +50,12 @@ class User(db.Model, UserMixin):
       'email':self.email,
       'created_at':self.created_at,
       'updated_at':self.updated_at,
-      'deleted_at':self.deleted_at
+      'deleted_at':self.deleted_at,
+      'age':self.age,
+      'gender':self.agenderge,
+      'address':self.address,
+      'detailed_address':self.detailed_address,
+      'role':self.role,
+      'point':self.point,
+      'tel':self.tel,
     }
