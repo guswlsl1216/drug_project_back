@@ -5,9 +5,9 @@ class Cart(db.Model):
   id = db.Column(db.Integer, primary_key=True)
   count = db.Column(db.Integer, nullable=False)
   goods_id = db.Column(db.Integer, db.ForeignKey('goods.id'), nullable=False)
-  goods = db.relationship('Goods', backref=db.backref('carts'))
+  goods = db.relationship('Goods', back_populates='carts')
   user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-  user = db.relationship('User', backref=db.backref('carts'))
+  user = db.relationship('User', back_populates='carts')
 
   def to_dict(self):
     return {
