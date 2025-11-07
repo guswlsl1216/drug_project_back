@@ -68,11 +68,14 @@ def performed(routineId):
   data=request.get_json()
   date = data.get('date')
   performed_times = data.get('performed_times')
-  routine = Routine.query.filter_by(id=routineId)
-  if performed_times.count(True) == routine.count:
+  routine = Routine.query.filter_by(id=routineId).first()
+  print(performed_times.count(True))
+  if performed_times.count(True) == 0:
+    count='danger'
+  elif performed_times.count(True) == routine.count:
     count='good'
   else:
-    count='danger'
+    count='warning'
   
   routine_log = Routine_log.query.filter_by(date=date, routine_id=routineId).first()
 

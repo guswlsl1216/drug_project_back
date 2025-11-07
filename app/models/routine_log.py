@@ -9,7 +9,7 @@ class Routine_log(db.Model):
   id = db.Column(db.Integer, primary_key=True)
   routine_id = db.Column(db.Integer, db.ForeignKey('routine.id', ondelete='CASCADE'), nullable=False)
   date = db.Column(db.Date, nullable=False)
-  count = db.Column(db.String(20), default=1)
+  count = db.Column(db.String(20))
   performed_times = db.Column(JSON, default=lambda: [False, False, False]) #먹었는지 여부
   def to_dict(self):
     return self.date.strftime('%Y-%m-%d'), self.performed_times
