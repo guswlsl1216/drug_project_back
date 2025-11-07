@@ -9,9 +9,9 @@ class Review(db.Model):
   create_at = db.Column(db.DateTime, default = datetime.now)
   stars = db.Column(db.Integer, nullable = False)
   goods_id = db.Column(db.Integer, db.ForeignKey('goods.id'), nullable=False)
-  goods = db.relationship('Goods', backref=db.backref('reviews'))
+  goods = db.relationship('Goods', back_populates='reviews')
   user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-  user = db.relationship('User', backref=db.backref('reviews'))
+  user = db.relationship('User', back_populates='reviews')
 
   def to_dict(self):
     return {

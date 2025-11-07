@@ -5,7 +5,7 @@ class Payment(db.Model):
   __tablename__ = 'payments'
   id = db.Column(db.Integer, primary_key=True)
   orders_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
-  orders = db.relationship('Order', backref=db.backref('payments'))
+  orders = db.relationship('Order', back_populates='payments')
   user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
   user = db.relationship('User', backref=db.backref('payments'))
   amount = db.Column(db.Integer, nullable = False)
