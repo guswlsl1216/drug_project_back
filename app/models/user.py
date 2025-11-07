@@ -18,7 +18,6 @@ class User(db.Model, UserMixin):
   address = db.Column(db.String(200), nullable=True)
   detailed_address = db.Column(db.String(200), nullable=True)
   role = db.Column(db.String(20), nullable=False, default="user")
-  point = db.Column(db.Integer, nullable=True)
   tel = db.Column(db.Integer, nullable=True)
   point = db.Column(db.Integer, nullable=True, default=0)
   goods = db.relationship('Goods', back_populates='user')
