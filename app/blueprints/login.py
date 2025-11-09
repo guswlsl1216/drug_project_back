@@ -102,12 +102,34 @@ def login_check():
   try:
     verify_jwt_in_request() # cookie에서 JWT 확인
     user_id = get_jwt_identity()
-    return jsonify(logged_in=True, user=user_id)
+    user = User.query.get(user_id)
+    if not user:
+      return jsonify(logged_in=False)
+    
+    user_info = {
+      "id":user.id,
+      "nickname":user.nickname,
+      "email":user.email,
+      "tel":user.tel
+    }
+
+    return jsonify(logged_in=True, user=user_info)
   except Exception:
     return jsonify(logged_in=False)
 
 @bp.post("/logout")
 def logout():
-  res = make_response(ok=True, message="로그아웃 되었습니다.")
-  unset_jwt_cookies(res) # JWT 쿠키를 제거
-  return res
+  try :
+    res = flask_make_response(jsonify({
+      'ok':True, 'message':"로그아웃 되었습니다."
+    }),200)
+    unset_jwt_cookies(res) # JWT 쿠키를 제거
+    return res
+  except Exception as e :
+    print(f"[Exception] 로그아웃 중 오류 발생: {str(e)}")
+    return flask_make_response(
+      jsonify({
+        'ok':False, 'message':'로그아웃 실패'
+      }), 500
+    )
+    

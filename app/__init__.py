@@ -12,8 +12,10 @@ def create_app():
   migrate.init_app(app, db)
   cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
   login_manager.init_app(app)
+  
 
   with app.app_context():
+    db.create_all()
     from .models import auto as auto_models
     auto_models.prepare_automap(only={
       "supps_products", "meds_products", 
