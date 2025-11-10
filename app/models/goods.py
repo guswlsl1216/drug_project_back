@@ -21,6 +21,17 @@ class Goods(db.Model):
   carts = db.relationship('Cart', back_populates='goods', cascade='all, delete-orphan')
   favorites = db.relationship('Favorite', back_populates='goods', cascade='all, delete-orphan')
 
+  def __init__(self, category, classify, goods_name, goods_desc, price, stock,image_path=None, is_active=True, user_id=None):
+    self.category = category
+    self.classify = classify
+    self.goods_name = goods_name
+    self.goods_desc = goods_desc
+    self.price = price
+    self.stock = stock
+    self.image_path = image_path
+    self.is_active = is_active
+    self.user_id = user_id
+
   def to_dict(self):
     return {
       'id' : self.id,
@@ -38,5 +49,6 @@ class Goods(db.Model):
         'id' : self.user_id,
         'nickname' : self.user.nickname
       },
-      'is_active' : '판매중' if self.is_active else '비활성화됨'
+      'is_active' : self.is_active,
+      'status_label': '판매중' if self.is_active else '비활성화됨',  # ← 라벨은 별도
     }

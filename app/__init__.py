@@ -7,6 +7,11 @@ def create_app():
   app = Flask(__name__)
   app.config.from_object(Config)
 
+  # 최대 5MB
+  app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+  # /static/uploads 아래에 저장 (current_app.static_folder 사용)
+  app.config["UPLOAD_SUBDIR"] = "uploads"
+
   db.init_app(app)
   jwt.init_app(app)
   migrate.init_app(app, db)
@@ -26,6 +31,7 @@ def create_app():
   from .blueprints.login import bp as login_bp
   from .blueprints.protected import bp as protected_bp
   from .blueprints.analyze_result import bp as analyze_result_bp
+  from .blueprints.admin import bp as admin_bp
 
   app.register_blueprint(routine_bp, url_prefix='/routine')
   app.register_blueprint(user_drugs_bp, url_prefix='/user_drugs')
@@ -33,5 +39,6 @@ def create_app():
   app.register_blueprint(login_bp, url_prefix='/login')
   app.register_blueprint(protected_bp, url_prefix='/user_protected')
   app.register_blueprint(analyze_result_bp, url_prefix='/result')
+  app.register_blueprint(admin_bp, url_prefix='/admin')
 
   return app
