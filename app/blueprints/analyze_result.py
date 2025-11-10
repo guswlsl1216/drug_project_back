@@ -74,6 +74,7 @@ def get_drug_info(product_id):
 
 # 분석 결과 저장
 @bp.post('/save')
+# @login_required
 def save_result():
   result = request.get_json()
 
@@ -99,10 +100,15 @@ def save_result():
   
   return jsonify({'ok':True, 'message':'분석 결과 내역에 저장되었습니다.'}), 200
 
-# 분석 결과 불러오기
+# 분석 결과 목록 불러오기
 @bp.get('/history')
+# @login_required
 def get_history():
   page = request.args.get('page', type=int, default=1)
+
+  # page가 없거나 1보다 작으면 1로 반환
+  if page is None and page < 1:
+    page = 1
 
   history = Analyze_result.query.order_by(Analyze_result.analysis_date.desc())
 
@@ -110,7 +116,15 @@ def get_history():
   #             .filter(Analyze_result.user_id == current_user.id)\
   #             .order_by(Analyze_result.analysis_date.desc())
   
-  history = history.paginate(page=page, per_page=5)
+  try:
+    history = history.paginate(page=page, per_page=5, error_out=False)
+    
+    if page < history.pages and history.total > 0:
+      pass
+      
+  except Exception as e:
+    return jsonify({'ok':False, 'message': 'pagination 처리 중 오류 발생'}), 500
+  
 
   pageNumbers = [page for page in history.iter_pages()]
 
@@ -120,5 +134,38 @@ def get_history():
     'total':history.total,
     'has_prev':history.has_prev,
     'has_next':history.has_next,
-    'pageNumbers':pageNumbers
+    'pageNumbers':pageNumbers,
+    'pages':history.pages
   })
+
+# 분석 결과 상세 불러오기
+@bp.get('/history/detail/<int:id>')
+# @login_required
+def get_history_detail(id):
+  result = db.session.query(Analyze_result).get(id)
+
+  # 로그인한 사용자 아이디와 결과 내역의 유저 아이디와 동일한지 체크
+  # if current_user.id != result.user_id:
+  #   return jsonify({'ok':False, 'message':'잘못된 접근'}), 403
+  
+  return jsonify({'ok':True, 'result':result.to_dict()})
+
+# 분석 결과 삭제
+@bp.delete('/history/detail/<int:id>')
+# @login_required
+def delete_history_detail(id):
+  result = db.session.query(Analyze_result).get(id)
+
+  # 로그인한 사용자 아이디와 결과 내역의 유저 아이디와 동일한지 체크
+  # if current_user.id != result.user_id:
+  #   return jsonify({'ok':False, 'message':'잘못된 접근'}), 403
+
+  db.session.delete(result)
+
+  try:
+    db.session.commit()
+  except Exception:
+    db.session.rollback()
+    return jsonify({'ok':False, 'message':'분석 결과 삭제 중 오류 발생'}), 500
+  
+  return ({'ok':True, 'message':'분석 결과가 삭제되었습니다.'})
