@@ -14,7 +14,7 @@ class Analyze_result(db.Model):
   interactions = db.Column(JSON)
   user_id = db.Column(db.Integer, nullable=False) # db.ForeignKey('users.id')
   # user = db.relationship('User', backref=db.backref('analyze_results', lazy=True))
-
+  # analysis_uid = db.Column(db.String(64), unique=True, nullable=True)
 
   def to_dict(self):
     return {
@@ -25,5 +25,6 @@ class Analyze_result(db.Model):
       'analysis_date':self.analysis_date.strftime('%Y-%m-%d %H:%M:%S'),
       'duplicates':self.duplicates,
       'interactions':self.interactions,
-      'user_id':self.user_id
+      'user_id':self.user_id,
+      # 'analysis_uid':self.analysis_uid
     }

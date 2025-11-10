@@ -77,20 +77,29 @@ def get_drug_info(product_id):
 # @login_required
 def save_result():
   result = request.get_json()
+  user_id = 1 # current_user.id
 
   if result is None:
     return jsonify({'ok':False, 'message':'분석 결과가 전송되지 않았습니다.'}), 400
   
-  result_data = Analyze_result(
+  # if Analyze_result.query.filter_by(
+  #   user_id=user_id,
+  #   analysis_uid=result.analysis_uid
+  # ).first():
+  #   return jsonify({'ok': False, 'message': '이미 저장된 분석 결과입니다.'}), 400
+  
+  # analysis_uid 컬럼 추가 후
+  # result = Analyze_result(**result, user_id=user_id)
+  result  = Analyze_result(
     status = result.get('status'),
     meds = result.get('meds'),
     supps = result.get('supps'),
     duplicates = result.get('duplicates'),
     interactions = result.get('interactions'),
-    user_id = 1 # current_user.id
-  )
+    user_id = user_id
+  ) # test
 
-  db.session.add(result_data)
+  db.session.add(result)
 
   try:
     db.session.commit()
@@ -98,7 +107,11 @@ def save_result():
     db.session.rollback()
     return jsonify({'ok':False, 'message':'분석 결과 저장 중 오류 발생'}), 400
   
-  return jsonify({'ok':True, 'message':'분석 결과 내역에 저장되었습니다.'}), 200
+  return jsonify({
+    'ok':True,
+    'message':'분석 결과 내역에 저장되었습니다.',
+    'isSave':True
+  }), 200
 
 # 분석 결과 목록 불러오기
 @bp.get('/history')
