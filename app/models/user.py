@@ -56,7 +56,7 @@ class User(db.Model, UserMixin):
       'updated_at':self.updated_at,
       'deleted_at':self.deleted_at,
       'age':self.age,
-      'gender':self.agenderge,
+      'gender':self.gender,
       'address':self.address,
       'detailed_address':self.detailed_address,
       'role':self.role,
