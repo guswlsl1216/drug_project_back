@@ -2,6 +2,11 @@ from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..extensions import db
+from enum import Enum
+
+class RoleEnum(str, Enum):
+  ADMIN = 'admin'
+  USER = 'user'
 
 class User(db.Model, UserMixin):
   __tablename__ = 'users'
@@ -17,7 +22,7 @@ class User(db.Model, UserMixin):
   gender = db.Column(db.String(10), nullable=True)
   address = db.Column(db.String(200), nullable=True)
   detailed_address = db.Column(db.String(200), nullable=True)
-  role = db.Column(db.String(20), nullable=False, default="user")
+  role = db.Column(db.Enum(RoleEnum), default=RoleEnum.USER)
   tel = db.Column(db.Integer, nullable=True)
   point = db.Column(db.Integer, nullable=True, default=0)
   goods = db.relationship('Goods', back_populates='user')
