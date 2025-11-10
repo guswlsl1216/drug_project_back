@@ -10,7 +10,6 @@ bp = Blueprint('login',__name__)
 @bp.post('/login')
 def login():
   
- 
   try:
     data = request.get_json()
    
@@ -25,7 +24,7 @@ def login():
       )
     
     user = authenticate_user(username, password)
-
+    
     if not user:
       return make_response(
         ok=False,
