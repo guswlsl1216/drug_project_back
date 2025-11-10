@@ -7,9 +7,9 @@ class Routine(db.Model):
   __tablename__='routine'
 
   id = db.Column(db.Integer, primary_key=True)
-  drug_id = db.Column(db.Integer, nullable=False, unique=True) #db.ForeignKey('drug.id')
-  author_id = db.Column(db.Integer, nullable=False) #db.ForeignKey('users.id')
-  # author=db.relationship('User',backref=db.backref('routine'))
+  drug_id = db.Column(db.Integer, nullable=False, unique=True)
+  author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+  author=db.relationship('User',backref=db.backref('routine'))
   start_date = db.Column(db.Date, nullable=False)
   end_date = db.Column(db.Date, nullable=False)
   count = db.Column(db.Integer, nullable=False) 
