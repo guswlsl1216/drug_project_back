@@ -1,14 +1,15 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, make_response as flask_make_response
 from ..extensions import db
 from ..models.user import User
 from ..utils.response import make_response
 from ..utils.services_auth import authenticate_user, user_access_token, user_refresh_token
-from flask_jwt_extended import jwt_required, unset_jwt_cookies, get_jwt_identity, set_access_cookies, set_refresh_cookies
+from flask_jwt_extended import jwt_required, unset_jwt_cookies, get_jwt_identity, set_access_cookies, set_refresh_cookies, verify_jwt_in_request
 
 bp = Blueprint('login',__name__)
 
 @bp.post('/login')
 def login():
+  
  
   try:
     data = request.get_json()
@@ -48,24 +49,25 @@ def login():
     
     access_token = user_access_token(user)
     refresh_token = user_refresh_token(user)
+
+    user_info = {
+      "id":user.id,
+      "nickname":user.nickname,
+      "email":user.email,
+      "tel":user.tel
+    }
     
-    res = make_response(
-      ok=True,
-      message='로그인 성공하였습니다.',
-      status=200
-    )
+    res = flask_make_response(jsonify({
+      'ok':True,
+      'message':'로그인 성공하였습니다.',
+      "data":user_info
+    }), 200 )
+    
 
     # 쿠키에 토큰 저장
-    set_access_cookies(res, access_token, 
-                       max_age=900,     # 15분
-                       secure=True,     # HTTPS 일 떄만 전송
-                       httponly=True,   # JS에서 접근 불가
-                       samesite="Lax")  # CSRF 최소화
-    set_refresh_cookies(res, refresh_token,
-                        max_age=604800,  # 7일
-                        secure=True,
-                        httponly=True,
-                        samesite="Lax")
+    set_access_cookies(res, access_token)
+    set_refresh_cookies(res, refresh_token)
+
 
     return res
   
@@ -94,8 +96,40 @@ def refresh():
   set_access_cookies(res, new_access_token) # 쿠키에 새 accessToken 저장
   return res
 
+@jwt_required()
+@bp.get("/check")
+def login_check():
+  try:
+    verify_jwt_in_request() # cookie에서 JWT 확인
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+      return jsonify(logged_in=False)
+    
+    user_info = {
+      "id":user.id,
+      "nickname":user.nickname,
+      "email":user.email,
+      "tel":user.tel
+    }
+
+    return jsonify(logged_in=True, user=user_info)
+  except Exception:
+    return jsonify(logged_in=False)
+
 @bp.post("/logout")
 def logout():
-  res = make_response(ok=True, message="로그아웃 되었습니다.")
-  unset_jwt_cookies(res) # JWT 쿠키를 제거
-  return res
+  try :
+    res = flask_make_response(jsonify({
+      'ok':True, 'message':"로그아웃 되었습니다."
+    }),200)
+    unset_jwt_cookies(res) # JWT 쿠키를 제거
+    return res
+  except Exception as e :
+    print(f"[Exception] 로그아웃 중 오류 발생: {str(e)}")
+    return flask_make_response(
+      jsonify({
+        'ok':False, 'message':'로그아웃 실패'
+      }), 500
+    )
+    
