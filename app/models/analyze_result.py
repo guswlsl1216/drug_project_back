@@ -12,8 +12,8 @@ class Analyze_result(db.Model):
   analysis_date = db.Column(db.DateTime, default=datetime.now)
   duplicates = db.Column(JSON)
   interactions = db.Column(JSON)
-  user_id = db.Column(db.Integer, nullable=False) # db.ForeignKey('users.id')
-  # user = db.relationship('User', backref=db.backref('analyze_results', lazy=True))
+  user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+  user = db.relationship('User', backref=db.backref('analyze_results'))
   # analysis_uid = db.Column(db.String(64), unique=True, nullable=True)
 
   def to_dict(self):

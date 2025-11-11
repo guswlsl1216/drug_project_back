@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
+from flask_jwt_extended import get_current_user, jwt_required
 from datetime import datetime
 from ..models.analyze_result import Analyze_result
 from ..models.auto import get_class
@@ -74,10 +75,11 @@ def get_drug_info(product_id):
 
 # 분석 결과 저장
 @bp.post('/save')
-# @login_required
+@jwt_required()
 def save_result():
   result = request.get_json()
-  user_id = 1 # current_user.id
+  user = get_current_user()
+  user_id = user["id"]
 
   if result is None:
     return jsonify({'ok':False, 'message':'분석 결과가 전송되지 않았습니다.'}), 400
