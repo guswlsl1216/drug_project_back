@@ -12,6 +12,10 @@ bp = Blueprint('routine', __name__)
 
 @bp.before_request
 def before_api_request():
+    
+    if request.method == 'OPTIONS':
+      return
+    
     # JWT 검증을 직접 수행
     try:
         verify_jwt_in_request()
@@ -21,7 +25,7 @@ def before_api_request():
         # 직접 데이터베이스에서 사용자 조회
         g.user = User.query.get(current_user_id)
     except Exception as e:
-        print(e)
+        print('-----------', e)
         return jsonify({'ok': False, 'message': '인증 실패ㅋㅋ'}), 401
 
 #루틴 추가
@@ -47,38 +51,37 @@ def addRoutine():
 
 #루틴 삭제
 @bp.delete('/deleteRoutine/<routineId>')
-@jwt_required()
 def deleteRoutine(routineId):
   routine=db.session.query(Routine).get(routineId)
-  db.session.delete(routine)
-  db.session.commit()
-  return jsonify({'ok':True, 'message':'삭제 완료'}),200
+  if routine.author_id == g.user.id:
+    db.session.delete(routine)
+    db.session.commit()
+    return jsonify({'ok':True, 'message':'삭제 완료'}),200
+  return jsonify({'ok':False, 'message':'유저id가 일치하지 않습니다'})
 
 #루틴 수정
 @bp.put('/updateRoutine/<routineId>')
-@jwt_required()
 def updateRoutine(routineId):
   data=request.get_json()
   if not data:
     return jsonify({'ok':False, 'message':'수신오류'}),400
   current_routine=db.session.query(Routine).get(routineId)
+  if current_routine.author_id == g.user.id:
+    eattime=data.get('eattime')
+    start_date=data.get('start_date')
+    end_date=data.get('end_date')
 
-  eattime=data.get('eattime')
-  start_date=data.get('start_date')
-  end_date=data.get('end_date')
+    current_routine.eattime=eattime
+    current_routine.start_date=start_date
+    current_routine.end_date=end_date
 
-  current_routine.eattime=eattime
-  current_routine.start_date=start_date
-  current_routine.end_date=end_date
-
-  db.session.add(current_routine)
-  db.session.commit()
-
-  return jsonify({'ok':True, 'message':'수정완료'}),200
+    db.session.add(current_routine)
+    db.session.commit()
+    return jsonify({'ok':True, 'message':'수정 완료'}),200
+  return jsonify({'ok':False, 'message':'유저id가 일치하지 않습니다'})
 
 #루틴 수행
 @bp.post('/performed/<routineId>')
-@jwt_required()
 def performed(routineId):
   try:
     data=request.get_json()
@@ -111,12 +114,17 @@ def performed(routineId):
 
 #루틴리스트 불러오기
 @bp.get('/getRoutine')
-@jwt_required()
 def getRoutine():
   #test current_user.id
-  user_id = 1
+  ##################################
+  #백레퍼런스로 불러오기
+  # user = get_current_user()
+  # user_id = user.id
+  # routines = user.routine
+  ###################################
+  user_id = g.user.id
   routine_list=[]
-  routines = Routine.query.filter(Routine.author_id == user_id).all()
+  routines = g.user.routine
   for routine in routines:
     routine_list.append(routine.to_dict())
   
@@ -124,9 +132,9 @@ def getRoutine():
   counts={} #key=routine.id value=count
   for routine in routines:
     log = Routine_log.query.filter(Routine_log.routine_id == routine.id).all()
-    logs[routine.id]={}
-    counts[routine.id]={}
     if log:
+      logs[routine.id]={}
+      counts[routine.id]={}
       for i in log:
         date, pr = i.to_dict()
         logs[routine.id][date] = pr
@@ -135,7 +143,6 @@ def getRoutine():
 
 #약/영양제 불러오기
 @bp.get('/getDrug/<drugId>')
-@jwt_required()
 def getDrug(drugId):
   SP = get_class("supps_products")
   MP = get_class("meds_products")
