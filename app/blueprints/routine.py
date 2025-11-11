@@ -1,12 +1,28 @@
 from datetime import datetime
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
+from flask_jwt_extended import get_current_user, get_jwt_identity, jwt_required, verify_jwt_in_request
 from flask_login import current_user, login_required
 from app import db
 from app.models.routine import Routine
 from app.models.routine_log import Routine_log
 from app.models.auto import get_class
+from ..models.user import User
 
 bp = Blueprint('routine', __name__)
+
+@bp.before_request
+def before_api_request():
+    # JWT 검증을 직접 수행
+    try:
+        verify_jwt_in_request()
+        # get_jwt_identity()로 user_id 가져오기
+        current_user_id = get_jwt_identity() 
+        
+        # 직접 데이터베이스에서 사용자 조회
+        g.user = User.query.get(current_user_id)
+    except Exception as e:
+        print(e)
+        return jsonify({'ok': False, 'message': '인증 실패ㅋㅋ'}), 401
 
 #루틴 추가
 @bp.post('/addRoutine')
@@ -14,13 +30,9 @@ def addRoutine():
   data=request.get_json()
   if not data:
     return jsonify({'ok':False, 'message':'수신오류'}),400
-  #drugName = data.get('drugName')
-  #drug = db.session.query(drug).get(drugName)
-  #drug_id=drug.drug_id
   
-  #Postman Test drug_id author_id
   drug_id=data.get('drug_id')
-  author_id=data.get('author_id')
+  author_id=g.user.id
 
   eattime=data.get('eattime')
   start_date=data.get('start_date')
@@ -35,6 +47,7 @@ def addRoutine():
 
 #루틴 삭제
 @bp.delete('/deleteRoutine/<routineId>')
+@jwt_required()
 def deleteRoutine(routineId):
   routine=db.session.query(Routine).get(routineId)
   db.session.delete(routine)
@@ -43,6 +56,7 @@ def deleteRoutine(routineId):
 
 #루틴 수정
 @bp.put('/updateRoutine/<routineId>')
+@jwt_required()
 def updateRoutine(routineId):
   data=request.get_json()
   if not data:
@@ -64,6 +78,7 @@ def updateRoutine(routineId):
 
 #루틴 수행
 @bp.post('/performed/<routineId>')
+@jwt_required()
 def performed(routineId):
   try:
     data=request.get_json()
@@ -96,6 +111,7 @@ def performed(routineId):
 
 #루틴리스트 불러오기
 @bp.get('/getRoutine')
+@jwt_required()
 def getRoutine():
   #test current_user.id
   user_id = 1
@@ -119,6 +135,7 @@ def getRoutine():
 
 #약/영양제 불러오기
 @bp.get('/getDrug/<drugId>')
+@jwt_required()
 def getDrug(drugId):
   SP = get_class("supps_products")
   MP = get_class("meds_products")
