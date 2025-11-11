@@ -5,6 +5,7 @@ from datetime import datetime
 from ..models.analyze_result import Analyze_result
 from ..models.auto import get_class
 from ..utils.process_ingredients import process_ingredients
+from ..utils.requires_ownership import requires_ownership
 
 from ..extensions import db
 from ..models.analyze_result import Analyze_result
@@ -79,27 +80,19 @@ def get_drug_info(product_id):
 def save_result():
   result = request.get_json()
   user = get_current_user()
-  user_id = user["id"]
+  user_id = user.id
 
   if result is None:
     return jsonify({'ok':False, 'message':'분석 결과가 전송되지 않았습니다.'}), 400
   
-  # if Analyze_result.query.filter_by(
-  #   user_id=user_id,
-  #   analysis_uid=result.analysis_uid
-  # ).first():
-  #   return jsonify({'ok': False, 'message': '이미 저장된 분석 결과입니다.'}), 400
+  # 중복 저장 방지
+  if Analyze_result.query.filter_by(
+    user_id=user_id,
+    analysis_uid=result.analysis_uid
+  ).first():
+    return jsonify({'ok': False, 'message': '이미 저장된 분석 결과입니다.'}), 400
   
-  # analysis_uid 컬럼 추가 후
-  # result = Analyze_result(**result, user_id=user_id)
-  result  = Analyze_result(
-    status = result.get('status'),
-    meds = result.get('meds'),
-    supps = result.get('supps'),
-    duplicates = result.get('duplicates'),
-    interactions = result.get('interactions'),
-    user_id = user_id
-  ) # test
+  result = Analyze_result(**result, user_id=user_id)
 
   db.session.add(result)
 
@@ -117,8 +110,10 @@ def save_result():
 
 # 분석 결과 목록 불러오기
 @bp.get('/history')
-# @login_required
+@jwt_required()
 def get_history():
+  user = get_current_user()
+  current_user_id = user.id
   page = request.args.get('page', type=int, default=1)
 
   # page가 없거나 1보다 작으면 1로 반환
@@ -127,9 +122,9 @@ def get_history():
 
   history = Analyze_result.query.order_by(Analyze_result.analysis_date.desc())
 
-  # history = Analyze_result.query\
-  #             .filter(Analyze_result.user_id == current_user.id)\
-  #             .order_by(Analyze_result.analysis_date.desc())
+  history = Analyze_result.query\
+              .filter(Analyze_result.user_id == current_user_id)\
+              .order_by(Analyze_result.analysis_date.desc())
   
   try:
     history = history.paginate(page=page, per_page=5, error_out=False)
@@ -155,25 +150,19 @@ def get_history():
 
 # 분석 결과 상세 불러오기
 @bp.get('/history/detail/<int:id>')
-# @login_required
+@jwt_required()
+@requires_ownership(model=Analyze_result, url_id_field='id', user_field='user_id')
 def get_history_detail(id):
   result = db.session.query(Analyze_result).get(id)
 
-  # 로그인한 사용자 아이디와 결과 내역의 유저 아이디와 동일한지 체크
-  # if current_user.id != result.user_id:
-  #   return jsonify({'ok':False, 'message':'잘못된 접근'}), 403
-  
   return jsonify({'ok':True, 'result':result.to_dict()})
 
 # 분석 결과 삭제
 @bp.delete('/history/detail/<int:id>')
-# @login_required
+@jwt_required()
+@requires_ownership(Analyze_result)
 def delete_history_detail(id):
   result = db.session.query(Analyze_result).get(id)
-
-  # 로그인한 사용자 아이디와 결과 내역의 유저 아이디와 동일한지 체크
-  # if current_user.id != result.user_id:
-  #   return jsonify({'ok':False, 'message':'잘못된 접근'}), 403
 
   db.session.delete(result)
 
