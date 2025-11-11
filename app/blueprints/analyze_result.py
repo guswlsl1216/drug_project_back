@@ -88,7 +88,7 @@ def save_result():
   # 중복 저장 방지
   if Analyze_result.query.filter_by(
     user_id=user_id,
-    analysis_uid=result.analysis_uid
+    analysis_uid=result['analysis_uid']
   ).first():
     return jsonify({'ok': False, 'message': '이미 저장된 분석 결과입니다.'}), 400
   
@@ -119,8 +119,6 @@ def get_history():
   # page가 없거나 1보다 작으면 1로 반환
   if page is None and page < 1:
     page = 1
-
-  history = Analyze_result.query.order_by(Analyze_result.analysis_date.desc())
 
   history = Analyze_result.query\
               .filter(Analyze_result.user_id == current_user_id)\
