@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.favorite import Favorite
-from app.models.auto import get_class
+from app.models.goods import Goods
 from datetime import datetime
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 
 bp = Blueprint('favorite', __name__)
@@ -10,8 +11,9 @@ bp = Blueprint('favorite', __name__)
 
 # 찜 목록
 @bp.post('/<int:goodsId>')
+@jwt_required()
 def toggle_favorite(goodsId):
-  user_id = 1
+  user_id = get_jwt_identity() # 현재 로그인된 사용자 ID 가져오기
 
   # 찜 상태 조회
   favorite_item = Favorite.query.filter_by(goods_id=goodsId, user_id=user_id).first()
@@ -24,7 +26,7 @@ def toggle_favorite(goodsId):
       return jsonify({'ok':True, 'message':'찜 목록에서 삭제되었습니다.', 'is_favorite':False}), 200
     else:
       # 찜 등록
-      new_favorite = Favorite(goods_id=goodsId, user_id=user_id, created_at=datetime.now())
+      new_favorite = Favorite(goods_id=goodsId, user_id=user_id, create_at=datetime.now())
       db.session.add(new_favorite)
       db.session.commit()
       return jsonify({'ok':True, 'message':'찜 목록에 등록되었습니다.', 'is_favorite':True}), 200
@@ -35,10 +37,40 @@ def toggle_favorite(goodsId):
     return jsonify({'ok':False, 'message':'서버 오류로 찜 상태를 변경할 수 없습니다.'}), 500
   
 
-@bp.get('/check/<int:goodsId>')
-def check_favorite_status(goodsId):
-  user_id = 1 # 임시 사용자 ID
+@bp.get('/list')
+@jwt_required()
+def get_favorite_list():
+  user_id = get_jwt_identity()
 
+  try:
+    favorites_query = Favorite.query.filter_by(user_id=user_id).all()
+
+    favorite_list = []
+
+    for item in favorites_query:
+      goods = Goods.query.filter_by(id=item.goods_id).first()
+
+      if goods:
+        favorite_list.append({
+          'id':goods.id,
+          'goods_name':goods.goods_name,
+          'price':goods.price,
+          'image_path':goods.image_path,
+          'create_at':item.create_at.isoformat() # 찜한 시간
+        })
+    
+    return jsonify({'ok':True, 'favorites':favorite_list}), 200
+  
+  except Exception as e:
+    print(f"찜 목록 조회 오류: {e}")
+    return jsonify({'ok':False, 'message':'찜 목록을 불러오는 데 실패했습니다.'}), 500
+
+
+# 찜 상태 확인
+@bp.get('/check/<int:goodsId>')
+@jwt_required()
+def check_favorite_status(goodsId):
+  user_id = get_jwt_identity()
   try:
     favorite_item = Favorite.query.filter_by(goods_id=goodsId, user_id=user_id).first()
 

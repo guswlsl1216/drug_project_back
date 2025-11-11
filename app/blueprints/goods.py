@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.goods import Goods
-from datetime import datetime
+from app.models.favorite import Favorite
+from flask_jwt_extended import jwt_required, get_jwt_identity, decode_token
+from jwt.exceptions import InvalidTokenError
 
 
 bp = Blueprint('goods', __name__)
@@ -23,6 +25,27 @@ SORT_MAP = {
 @bp.get('/')
 def get_goods_list():
   try:
+    raw_user_id = None
+    user_id = None
+
+    auth_header = request.headers.get('Authorization')
+    if auth_header and "Bearer" in auth_header:
+      token = auth_header.replace("Bearer ", "")
+
+      try:
+        decoded = decode_token(token)
+        raw_user_id=decoded.get('sub') # 기본적으로 사용자 ID를 저장하는 필드
+      except InvalidTokenError:
+        print("DEBUG: Manually caught InvalidTokenError, proceeding without user_id.")
+        pass
+
+    if raw_user_id is not None:
+      try:
+        user_id=int(raw_user_id)
+      except (ValueError, TypeError):
+        user_id = None
+
+
     category_key = request.args.get('category_key')
     category_value = request.args.get('category_value')
     sort_by = request.args.get('sort_by', 'newest')
@@ -34,7 +57,7 @@ def get_goods_list():
     # 카테고리 필터링 로직
     if category_value and category_value != 'All':
 
-      if category_key == '전체' or category_key not in FILTER_MAP:
+      if category_key == 'All' or category_key not in FILTER_MAP:
         pass
       else:
         filter_field = FILTER_MAP.get(category_key)
@@ -57,7 +80,18 @@ def get_goods_list():
     goods_list = pagination.items
 
     # JSON 응답 데이터 포맷팅
-    formatted_goods = [item.to_dict() for item in goods_list]
+    formatted_goods = []
+    for item in goods_list:
+      goods_dict = item.to_dict()
+
+      goods_dict['is_favorite'] = False
+
+      if user_id is not None:
+        favorite_item = Favorite.query.filter_by(goods_id=item.id, user_id=user_id).first()
+        if favorite_item:
+          goods_dict['is_favorite'] = True
+
+      formatted_goods.append(goods_dict)
 
     return jsonify({
       'ok':True,
