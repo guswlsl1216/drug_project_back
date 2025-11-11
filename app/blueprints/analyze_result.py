@@ -4,11 +4,13 @@ from flask_login import current_user, login_required
 from datetime import datetime
 from ..models.analyze_result import Analyze_result
 from ..models.auto import get_class
+from ..utils.process_ingredients import process_ingredients
 
 bp = Blueprint('analyze_result', __name__)
 MP = get_class("meds_products")
 SP = get_class("supps_products")
 
+# 분석 후 약 id로 정보 불러오기
 @bp.get('/info/<int:product_id>')
 def get_drug_info(product_id):
   type_str = request.args.get('type')
@@ -41,12 +43,12 @@ def get_drug_info(product_id):
       "manufacturer" : info.ENTP_NAME, # 업체명
       "expiry_info" : info.VALID_TERM, # 유효기간
       "appearance" : info.CHART, # 성상
-      "intake_method_doc" : info.UD_DOC_TXT, # 용법용량 문서 데이터
-      "effect_doc" : info.EE_DOC_TXT, # 효능효과 문서 데이터
-      "caution_doc" : info.NB_DOC_TXT,  # 주의사항(일반) 문서 데이터
+      "intake_method_doc" : info.UD_DOC_ID, # 용법용량 문서 다운로드 주소
+      "effect_doc" : info.EE_DOC_ID, # 효능효과 문서 다운로드 주소
+      "caution_doc" : info.NB_DOC_ID,  # 주의사항(일반) 문서 다운로드 주소
       # 의약품 전용 필드
-      "main_ingredient" : info.MAIN_ITEM_INGR, # 유효성분
-      "additive_name" : info.INGR_NAME,  # 첨가제
+      "main_ingredient" : process_ingredients(info.MAIN_ITEM_INGR), # 유효성분
+      "additive_name" : process_ingredients(info.INGR_NAME),  # 첨가제
       "storage_method" : info.STORAGE_METHOD, # 저장방법
     }
   else:
@@ -65,25 +67,32 @@ def get_drug_info(product_id):
 
   return jsonify({
     'ok':True,
-    'type':type,
-    'data':info_data
+    'info_data':info_data
   }), 200
 
-# @bp.post('/save')
-# def save_result():
-#   data = request.get_json()
-#   result = data.get('result')
+# 분석 결과 저장
+@bp.post('/save')
+def save_result():
+  result = request.get_json()
 
-#   if result is None:
-#     return ({'ok':False, 'message':'분석 결과가 전송되지 않았습니다.'}), 400
+  if result is None:
+    return jsonify({'ok':False, 'message':'분석 결과가 전송되지 않았습니다.'}), 400
   
-#   result = Analyze_result(
-#     id = id,
-#     status = result.status,
-#     meds = result.meds,
-#     supps = result.supps,
-#     duplicates = result.duplicates,
-#     interactions = result.interactions
-#     user_id = 1 # test
-#   )
+  result_data = Analyze_result(
+    status = result.get('status'),
+    meds = result.get('meds'),
+    supps = result.get('supps'),
+    duplicates = result.get('duplicates'),
+    interactions = result.get('interactions'),
+    user_id = 1 # test
+  )
 
+  db.session.add(result_data)
+
+  try:
+    db.session.commit()
+  except Exception:
+    db.session.rollback()
+    return jsonify({'ok':False, 'message':'분석 결과 저장 중 오류 발생'}), 400
+  
+  return jsonify({'ok':True, 'message':'분석 결과 내역에 저장되었습니다.'}), 200
