@@ -10,7 +10,6 @@ bp = Blueprint('login',__name__)
 @bp.post('/login')
 def login():
   
- 
   try:
     data = request.get_json()
    
@@ -25,7 +24,7 @@ def login():
       )
     
     user = authenticate_user(username, password)
-
+    
     if not user:
       return make_response(
         ok=False,
@@ -52,7 +51,7 @@ def login():
 
     user_info = {
       "id":user.id,
-      "username":user.username,
+      "nickname":user.nickname,
       "email":user.email,
       "tel":user.tel
     }
@@ -66,7 +65,6 @@ def login():
 
     # 쿠키에 토큰 저장
     set_access_cookies(res, access_token)
-   
     set_refresh_cookies(res, refresh_token)
 
 
@@ -97,17 +95,40 @@ def refresh():
   set_access_cookies(res, new_access_token) # 쿠키에 새 accessToken 저장
   return res
 
+@jwt_required()
 @bp.get("/check")
 def login_check():
   try:
     verify_jwt_in_request() # cookie에서 JWT 확인
     user_id = get_jwt_identity()
-    return jsonify(logged_in=True, user=user_id)
+    user = User.query.get(user_id)
+    if not user:
+      return jsonify(logged_in=False)
+    
+    user_info = {
+      "id":user.id,
+      "nickname":user.nickname,
+      "email":user.email,
+      "tel":user.tel
+    }
+
+    return jsonify(logged_in=True, user=user_info)
   except Exception:
     return jsonify(logged_in=False)
 
 @bp.post("/logout")
 def logout():
-  res = make_response(ok=True, message="로그아웃 되었습니다.")
-  unset_jwt_cookies(res) # JWT 쿠키를 제거
-  return res
+  try :
+    res = flask_make_response(jsonify({
+      'ok':True, 'message':"로그아웃 되었습니다."
+    }),200)
+    unset_jwt_cookies(res) # JWT 쿠키를 제거
+    return res
+  except Exception as e :
+    print(f"[Exception] 로그아웃 중 오류 발생: {str(e)}")
+    return flask_make_response(
+      jsonify({
+        'ok':False, 'message':'로그아웃 실패'
+      }), 500
+    )
+    
