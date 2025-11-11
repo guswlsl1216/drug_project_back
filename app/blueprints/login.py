@@ -132,3 +132,13 @@ def logout():
       }), 500
     )
     
+
+@bp.post("/test")
+@jwt_required()
+def test():
+  print("12")
+  return make_response(
+    ok=True,
+    message='test 완료',
+    status=200
+  )
