@@ -1,5 +1,6 @@
 from ..extensions import db
 from datetime import datetime
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 class Goods(db.Model):
   __tablename__ = 'goods'
@@ -10,7 +11,7 @@ class Goods(db.Model):
   sell_count = db.Column(db.Integer, default=0)
   goods_name = db.Column(db.String(256), nullable=False)
   image_path = db.Column(db.String(512), nullable=False)
-  goods_desc = db.Column(db.Text(), nullable=False)
+  goods_desc = db.Column(LONGTEXT, nullable=False)
   create_at = db.Column(db.DateTime, default = datetime.now)
   update_at = db.Column(db.DateTime, default = datetime.now, onupdate=datetime.now)
   stock = db.Column(db.Integer, nullable=False)

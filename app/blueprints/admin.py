@@ -2,11 +2,14 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from ..extensions import db
 from ..models.goods import Goods
+from flask_jwt_extended import jwt_required
+from ..utils.auth_user import get_current_user
 
 bp = Blueprint('admin', __name__)
 
 # 상품 등록
 @bp.post('/goods')
+@jwt_required()
 def write_goods():
   data = request.get_json()
 
@@ -18,6 +21,9 @@ def write_goods():
   stock = int(data.get('stock', 0))
   image_path = data.get('image_path')
   is_active = bool(data.get('is_active', True))
+
+  user = get_current_user()
+  user_id = user["id"] if user else None
 
   missing = []
   if not category: missing.append("카테고리")
@@ -33,6 +39,10 @@ def write_goods():
       "message" : f"필수 항목 누락 : {','.join(missing)} "
     }), 400
   
+  #(권장) HTML sanitize
+  from ..utils.sanitize import sanitize_html
+  goods_desc = sanitize_html(goods_desc)
+  
   goods = Goods(
     category=category,
     classify=classify,
@@ -42,7 +52,7 @@ def write_goods():
     stock=stock,
     image_path=image_path,
     is_active=is_active,
-    user_id=current_user.id
+    user_id=user_id
   )
 
   db.session.add(goods)
@@ -61,6 +71,7 @@ def write_goods():
 
 # 상품 이미지 등록
 @bp.post('/upload')
+@jwt_required()
 def image_upload():
   from flask import current_app
   from werkzeug.utils import secure_filename
@@ -121,6 +132,7 @@ def image_upload():
 
 # 상품 수정
 @bp.put("/edit/<int:id>")
+@jwt_required()
 def edit_goods(id):
   data = request.get_json()
 
@@ -132,6 +144,8 @@ def edit_goods(id):
   stock = int(data.get('stock', 0))
   image_path = data.get('image_path')
   is_active = bool(data.get('is_active', True))
+
+  user_id = get_current_user()
 
   missing = []
   if not category: missing.append("카테고리")
@@ -152,7 +166,7 @@ def edit_goods(id):
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
   
-  if goods.user_id != current_user.id:
+  if goods.user_id != user_id:
     return jsonify({'ok' : False, 'message' : '작성자만 수정 가능합니다'}), 403
   
   goods.category = category
@@ -176,6 +190,7 @@ def edit_goods(id):
 
 # 상품 삭제
 @bp.delete("/goods/<int:id>")
+@jwt_required()
 def delete_goods(id):
   goods = db.session.query(Goods).get(id)
 
