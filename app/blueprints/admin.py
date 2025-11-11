@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
 from ..extensions import db
 from ..models.goods import Goods
 from flask_jwt_extended import jwt_required
@@ -15,23 +14,31 @@ def write_goods():
 
   category = data.get('category')
   classify = data.get('classify')
-  price = int(data.get('price', 0))
   goods_name = data.get('goods_name')
   goods_desc = data.get('goods_desc')
-  stock = int(data.get('stock', 0))
   image_path = data.get('image_path')
   is_active = bool(data.get('is_active', True))
 
-  user = get_current_user()
-  user_id = user["id"] if user else None
+  # 2) 숫자 파싱은 try/except로 안전하게
+  def parse_int(val, default=None):
+    if val is None or val == '':
+      return default
+    try:
+      return int(val)
+    except (TypeError, ValueError):
+      return default
+    
+  price = parse_int(data.get('price'), default=None)
+  stock = parse_int(data.get('stock'), default=None)
 
   missing = []
   if not category: missing.append("카테고리")
   if not classify: missing.append("분류")
   if not goods_name: missing.append("상품명")
-  if not goods_desc: missing.append("상품 설명")
-  if not price: missing.append("가격")
-  if not stock: missing.append("재고")
+  if goods_desc is None or goods_desc == "": missing.append("상품 설명")
+  if price is None: missing.append("가격")
+  if stock is None: missing.append("재고")
+  if not image_path: missing.append("대표 이미지")
 
   if missing:
     return jsonify({
@@ -42,6 +49,9 @@ def write_goods():
   #(권장) HTML sanitize
   from ..utils.sanitize import sanitize_html
   goods_desc = sanitize_html(goods_desc)
+
+  user = get_current_user()
+  user_id = user["id"] if user else None
   
   goods = Goods(
     category=category,
@@ -59,26 +69,26 @@ def write_goods():
 
   try:
     db.session.commit()
-  except Exception:
+  except Exception as e:
     db.session.rollback()
-    return jsonify({'ok' : False, 'message' : '상품 등록 실패.'}), 500
+    return jsonify({'ok' : False, 'message' : f'상품 등록 실패: {e}'}), 500
   
   return jsonify({
     "ok" : True,
     "message" : "상품이 등록되었습니다.",
     "goods" : goods.to_dict()
-  })
+  }), 201
 
 # 상품 이미지 등록
 @bp.post('/upload')
 @jwt_required()
 def image_upload():
-  from flask import current_app
+  from flask import current_app, url_for
   from werkzeug.utils import secure_filename
   import os, uuid
 
   try:
-    from PIL import Image
+    from PIL import Image as PILImage
     PIL_AVAILABLE = True
   except Exception:
     PIL_AVAILABLE = False
@@ -88,7 +98,7 @@ def image_upload():
   def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
   
-  file = request.files.get('file')
+  file = request.files.get('image') or request.files.get('file')
   if not file or file.filename == "":
     return jsonify({"ok": False, "message": "파일이 없습니다."}), 400
   
@@ -110,7 +120,7 @@ def image_upload():
   if PIL_AVAILABLE:
     try:
       file.stream.seek(0)
-      img = Image.open(file.stream)
+      img = PILImage.open(file.stream)
       img.verify()  # 이미지 포맷 검증
       file.stream.seek(0)  # 저장 전에 스트림 되감기
     except Exception:
@@ -119,6 +129,9 @@ def image_upload():
   # 저장
   file.save(save_path)
 
+  # 절대 URL (http://localhost:5000/static/uploads/xxx.jpg)
+  absolute_url = url_for('static', filename=f"{upload_subdir}/{filename}", _external=True)
+
   # 브라우저에서 접근 가능한 공개 경로 (/static/uploads/파일명)
   public_url = f"/static/{upload_subdir}/{filename}"
 
@@ -126,7 +139,7 @@ def image_upload():
     "ok": True,
     "message": "이미지 업로드 완료",
     "image_path": public_url,  # 프론트에서 사용
-    "url": public_url,         # 혹시 다른 키를 참고해도 되게 중복 제공
+    "url": absolute_url,          # 혹시 다른 키를 참고해도 되게 중복 제공
     "filename": filename
   }), 200
 
@@ -138,22 +151,30 @@ def edit_goods(id):
 
   category = data.get('category')
   classify = data.get('classify')
-  price = int(data.get('price', 0))
   goods_name = data.get('goods_name')
   goods_desc = data.get('goods_desc')
-  stock = int(data.get('stock', 0))
   image_path = data.get('image_path')
   is_active = bool(data.get('is_active', True))
 
-  user_id = get_current_user()
+  def parse_int(val, default=None):
+    if val is None or val == '':
+      return default
+    try:
+      return int(val)
+    except (TypeError, ValueError):
+      return default
+
+  price = parse_int(data.get('price'), default=None)
+  stock = parse_int(data.get('stock'), default=None)
 
   missing = []
   if not category: missing.append("카테고리")
   if not classify: missing.append("분류")
   if not goods_name: missing.append("상품명")
-  if not goods_desc: missing.append("상품 설명")
-  if not price: missing.append("가격")
-  if not stock: missing.append("재고")
+  if goods_desc is None or goods_desc == "": missing.append("상품 설명")
+  if price is None: missing.append("가격")
+  if stock is None: missing.append("재고")
+  if not image_path: missing.append("대표 이미지")
 
   if missing:
     return jsonify({
@@ -161,7 +182,13 @@ def edit_goods(id):
       "message" : f"수정 필수 항목 누락 : {','.join(missing)} "
     }), 400
   
+  from ..utils.sanitize import sanitize_html
+  goods_desc = sanitize_html(goods_desc)
+  
   goods = db.session.query(Goods).get(id)
+
+  user = get_current_user()
+  user_id = user["id"] if user else None
 
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
@@ -194,11 +221,14 @@ def edit_goods(id):
 def delete_goods(id):
   goods = db.session.query(Goods).get(id)
 
+  user = get_current_user()
+  user_id = user["id"] if user else None
+
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
   
-  if goods.user_id != current_user.id:
-    return jsonify({'ok' : False, 'message' : '작성자만 수정 가능합니다'}), 403
+  if goods.user_id != user_id:
+    return jsonify({'ok' : False, 'message' : '작성자만 삭제 가능합니다'}), 403
   
   try:
     db.session.delete(goods)
@@ -237,15 +267,15 @@ def board_list():
   page = request.args.get('page', type=int, default=1)
   per_page = 10
   goods_q = Goods.query.order_by(Goods.create_at.desc())
-  goods = goods_q.paginate(page=page , per_page=per_page)
+  pagination = goods_q.paginate(page=page , per_page=per_page)
 
   
   return jsonify({
     'ok' : True,
-    'goods' : [goods.to_dict() for goods in goods.items],
-    'total' : goods.total,
-    'page' : goods.page,
-    'pages' : goods.pages,
+    'goods' : [g.to_dict() for g in pagination.items],
+    'total' : pagination.total,
+    'page' : pagination.page,
+    'pages' : pagination.pages,
     "per_page": per_page
   }), 200
   
