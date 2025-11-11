@@ -2,6 +2,11 @@ from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..extensions import db
+from enum import Enum
+
+class RoleEnum(str, Enum):
+  ADMIN = 'admin'
+  USER = 'user'
 
 class User(db.Model, UserMixin):
   __tablename__ = 'users'
@@ -17,6 +22,13 @@ class User(db.Model, UserMixin):
   gender = db.Column(db.String(10), nullable=True)
   address = db.Column(db.String(200), nullable=True)
   detailed_address = db.Column(db.String(200), nullable=True)
+  role = db.Column(db.Enum(RoleEnum), default=RoleEnum.USER)
+  tel = db.Column(db.Integer, nullable=True)
+  point = db.Column(db.Integer, nullable=True, default=0)
+  goods = db.relationship('Goods', back_populates='user')
+  reviews = db.relationship('Review', back_populates='user', cascade='all, delete-orphan')
+  carts = db.relationship('Cart', back_populates='user', cascade='all, delete-orphan')
+  favorites = db.relationship('Favorite', back_populates='user', cascade='all, delete-orphan')
 
   def set_password(self, password): # 암호화
     self.password_hash = generate_password_hash(password)
@@ -47,5 +59,12 @@ class User(db.Model, UserMixin):
       'email':self.email,
       'created_at':self.created_at,
       'updated_at':self.updated_at,
-      'deleted_at':self.deleted_at
+      'deleted_at':self.deleted_at,
+      'age':self.age,
+      'gender':self.gender,
+      'address':self.address,
+      'detailed_address':self.detailed_address,
+      'role':self.role,
+      'point':self.point,
+      'tel':self.tel,
     }
