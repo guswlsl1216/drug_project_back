@@ -22,6 +22,7 @@ def upgrade():
         batch_op.drop_index(batch_op.f('drug_id'))
 
     # ### end Alembic commands ###
+    
 
 
 def downgrade():
@@ -30,3 +31,4 @@ def downgrade():
         batch_op.create_index(batch_op.f('drug_id'), ['drug_id'], unique=True)
 
     # ### end Alembic commands ###
+    

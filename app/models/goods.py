@@ -1,5 +1,6 @@
 from ..extensions import db
 from datetime import datetime
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 class Goods(db.Model):
   __tablename__ = 'goods'
@@ -10,7 +11,7 @@ class Goods(db.Model):
   sell_count = db.Column(db.Integer, default=0)
   goods_name = db.Column(db.String(256), nullable=False)
   image_path = db.Column(db.String(512), nullable=False)
-  goods_desc = db.Column(db.Text(), nullable=False)
+  goods_desc = db.Column(LONGTEXT, nullable=False)
   create_at = db.Column(db.DateTime, default = datetime.now)
   update_at = db.Column(db.DateTime, default = datetime.now, onupdate=datetime.now)
   stock = db.Column(db.Integer, nullable=False)
@@ -20,6 +21,17 @@ class Goods(db.Model):
   reviews = db.relationship('Review', back_populates='goods', cascade='all, delete-orphan')
   carts = db.relationship('Cart', back_populates='goods', cascade='all, delete-orphan')
   favorites = db.relationship('Favorite', back_populates='goods', cascade='all, delete-orphan')
+
+  def __init__(self, category, classify, goods_name, goods_desc, price, stock,image_path=None, is_active=True, user_id=None):
+    self.category = category
+    self.classify = classify
+    self.goods_name = goods_name
+    self.goods_desc = goods_desc
+    self.price = price
+    self.stock = stock
+    self.image_path = image_path
+    self.is_active = is_active
+    self.user_id = user_id
 
   def to_dict(self):
     return {
@@ -38,5 +50,6 @@ class Goods(db.Model):
         'id' : self.user_id,
         'nickname' : self.user.nickname
       },
-      'is_active' : '판매중' if self.is_active else '비활성화됨'
+      'is_active' : self.is_active,
+      'status_label': '판매중' if self.is_active else '비활성화됨',  # ← 라벨은 별도
     }
