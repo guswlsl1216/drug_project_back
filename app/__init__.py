@@ -13,6 +13,11 @@ def create_app():
   cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
   login_manager.init_app(app)
   
+  @jwt.user_lookup_loader
+  def user_lookup_callback(_jwt_header, jwt_payload):
+    from .models.user import User
+    identity = jwt_payload["sub"]
+    return User.query.get(int(identity))
 
   with app.app_context():
     db.create_all()
