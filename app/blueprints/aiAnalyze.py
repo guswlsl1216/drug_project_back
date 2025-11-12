@@ -5,6 +5,7 @@ from ..models.auto import get_class
 from sqlalchemy import or_, func
 import uuid
 import random
+from ..utils.process_ingredients import process_ingredients
 
 bp = Blueprint('aiAnalyze', __name__)
 
@@ -13,12 +14,40 @@ bp = Blueprint('aiAnalyze', __name__)
 MP = get_class("meds_products")
 SP = get_class("supps_products")
 # ⭐ 의약품-의약품 상호작용 테이블 (drug_contraindication)
-Interaction = get_class("drug_contraindication") 
+Interaction = get_class("drug_contraindications") 
 # ⭐ 영양제-의약품 상호작용 테이블 (supps_meds_interaction)
 SuppsMedsInteraction = get_class("supps_meds_interaction")
 
 
-# --- 실제 DB 부작용 및 중복 성분 검색 함수 (실제 DB 로직으로 대체) ---
+# --- 유틸리티 함수 ---
+
+def safe_ingredient_str(ingr_data):
+    """
+    의약품 성분 데이터를 안전하게 문자열로 변환합니다.
+    데이터가 리스트인 경우 공백으로 연결하고, 아니면 문자열로 변환 후 공백을 제거합니다.
+    """
+    if isinstance(ingr_data, list):
+        # 리스트의 모든 요소를 공백으로 연결
+        return ' '.join([str(item).strip() for item in ingr_data]).strip()
+    
+    # None이거나 기타 타입인 경우 문자열로 변환 후 공백 제거
+    return str(ingr_data).strip()
+
+def extract_supp_ingredients(ingredients_str):
+    """
+    영양제 성분 문자열을 분석하여 주요 성분 리스트를 반환합니다.
+    쉼표(,)를 기준으로 나누되, 빈 문자열은 제거합니다.
+    """
+    if not isinstance(ingredients_str, str):
+        # 문자열이 아니면 빈 리스트 반환 (프론트엔드에서 숫자형 ID가 넘어오는 경우 대비)
+        return []
+
+    # 쉼표를 기준으로 나눈 후 공백을 제거하고, 빈 문자열을 제거합니다.
+    # 괄호 안의 내용이나 불필요한 부분을 제거하기 위해 split('(')[0]을 적용
+    ingredients = [s.strip().split('(')[0] for s in ingredients_str.split(',') if s.strip()]
+    return ingredients
+
+# --- 실제 DB 부작용 및 중복 성분 검색 함수 (현재 analyze_result에서는 사용되지 않지만 코드 안전성 확보) ---
 
 def get_actual_interaction_data(product1, ingredient1, product2, ingredient2):
     """
@@ -111,20 +140,6 @@ def get_supps_meds_interaction_data(supp_ingredient, med_ingredient, product_nam
     return None
 
 
-def extract_supp_ingredients(ingredients_str):
-    """
-    영양제 성분 문자열을 분석하여 주요 성분 리스트를 반환합니다.
-    쉼표(,)를 기준으로 나누되, 빈 문자열은 제거합니다.
-    """
-    if not isinstance(ingredients_str, str):
-        # 문자열이 아니면 빈 리스트 반환 (프론트엔드에서 숫자형 ID가 넘어오는 경우 대비)
-        return []
-
-    # 쉼표를 기준으로 나눈 후 공백을 제거하고, 빈 문자열을 제거합니다.
-    ingredients = [s.strip() for s in ingredients_str.split(',') if s.strip()]
-    return ingredients
-
-
 # --- API 엔드포인트: 제품 검색 ---
 
 @bp.route('/medicine/search', methods=['GET'])
@@ -141,9 +156,11 @@ def search_meds():
     if search_type == 'supps':
         column_name = model.PRDLST_NM
         ingredient_column = model.RAWMTRL_NM
+        kor_name_column = model.RAWMTRL_NM
     else:
         column_name = model.ITEM_NAME
         ingredient_column = model.MAIN_INGR_ENG
+        kor_name_column = model.MAIN_ITEM_INGR
 
     if not search_name:
         return jsonify({
@@ -155,7 +172,7 @@ def search_meds():
     search_keyword = f"%{normalized_search_name}%"
 
     results = (
-        db.session.query(model.id, column_name, ingredient_column) 
+        db.session.query(model.id, column_name, ingredient_column, kor_name_column) 
         .filter(
           func.lower(func.replace(column_name, ' ', '')).like(search_keyword)
         ).limit(50).all()
@@ -163,16 +180,26 @@ def search_meds():
 
     data = []
     for r in results:
-          item_id, item_name, item_ingredients = r
+          item_id, item_name, item_ingredients, item_korname = r
           
+          # ingredient_column의 값이 None일 경우 처리
           processed_ingredients = item_ingredients if item_ingredients is not None else ""
-          
-          data.append({ 
-              "id" : item_id, 
-              "name" : item_name,
-              "ingredients": processed_ingredients 
-          })
 
+          # korName이 비어있거나 None일 경우, item_name(제품명)을 대체값으로 사용
+          final_kor_name = item_korname
+          if search_type == 'supps' and (final_kor_name is None or str(final_kor_name).strip() == ""):
+              final_kor_name = item_name
+          # 의약품의 경우도 혹시 모를 None 방지
+          elif final_kor_name is None:
+              final_kor_name = ""
+
+          data.append({
+              "id" : item_id,
+              "name" : item_name,
+              "ingredients": processed_ingredients,
+              # 프론트엔드와 통일: 'kor-name' -> 'korName' (camelCase)
+              "korName": process_ingredients(final_kor_name), 
+          })
 
     return jsonify({
         'success': True,
@@ -197,36 +224,81 @@ def analyze_result():
     supps = data.get('supps', [])
     interactions = []
     duplicates = []
-    max_level = 0  # 전체 위험도 상태 추적
+    max_level = 0 # 전체 위험도 상태 추적
 
     print(data)
 
     # ==========================
     # 1️⃣ 영양제 - 의약품 상호작용 검색 (level 1)
     # ==========================
-    if supps and meds:
-        for med in meds:
-            med_ingr = med.get('ingredients', '').strip()
-            for supp in supps:
-                supp_ingredients = extract_supp_ingredients(supp.get('ingredients', ''))
-                for supp_ingr in supp_ingredients:
-                    # 영양제-의약품 상호작용 DB에서 검색
-                    query = db.session.query(SuppsMedsInteraction.warning_text).filter(
-                        func.lower(SuppsMedsInteraction.ingredient).like(f"%{supp_ingr.lower()}%"),
-                        func.lower(SuppsMedsInteraction.caution_drug).like(f"%{med_ingr.lower()}%")
-                    ).first()
+    for med in meds:
+        # 안전한 성분 문자열 추출 (리스트 입력 방지)
+        med_ingr = safe_ingredient_str(med.get('ingredients', ''))
+        
+        if not med_ingr: # 의약품 성분이 없는 경우 건너뛰기
+            continue
 
-                    if query:
-                        warning_message = query[0]
-                        interactions.append({
-                            "product1_name": supp['name'],
-                            "ingredient1": supp_ingr,
-                            "product2_name": med['name'],
-                            "ingredient2": med_ingr,
-                            "level": 1,
-                            "message": warning_message
-                        })
-                        max_level = max(max_level, 1)
+        med_ingr_clean = med_ingr.lower()
+        
+        for supp in supps:
+            # 영양제 성분 추출 (extract_supp_ingredients 함수가 이미 안전하게 처리)
+            supp_ingredients = extract_supp_ingredients(supp.get('ingredients', ''))
+            
+            for supp_ingr in supp_ingredients:
+                supp_ingr_clean = supp_ingr.split('(')[0].strip().lower()
+                
+                # ==============================================================
+                # 1단계: 일반 경고 (Caution Drug 필드가 비어있는 경우) 검색
+                # ==============================================================
+                
+                general_warning_query = db.session.query(
+                    SuppsMedsInteraction.warning_text
+                ).filter(
+                    # 영양제 성분 매칭
+                    func.lower(supp_ingr_clean).like(func.lower(func.concat('%', SuppsMedsInteraction.ingredient, '%'))),
+                    
+                    # caution_drug 필드가 비어있는 레코드를 찾음 (NULL 또는 빈 문자열)
+                    (SuppsMedsInteraction.caution_drug == None) | (SuppsMedsInteraction.caution_drug == '')
+                ).first()
+
+                if general_warning_query:
+                    # 일반 경고는 항상 interactions 리스트에 추가
+                    warning_message = general_warning_query[0]
+                    interactions.append({
+                        "product1_name": supp['name'],
+                        "ingredient1": supp_ingr,
+                        "product2_name": med['name'],
+                        "ingredient2": safe_ingredient_str(med.get('korName', '')), 
+                        "level": 1,
+                        "message": warning_message
+                    })
+                    max_level = max(max_level, 1)
+
+                # ==============================================================
+                # 2단계: 특정 의약품 상호작용 검색 (Caution Drug 필드에 값이 있는 경우)
+                # ==============================================================
+                
+                specific_interaction_query = db.session.query(
+                    SuppsMedsInteraction.warning_text
+                ).filter(
+                    # 영양제 성분 매칭
+                    func.lower(supp_ingr_clean).like(func.lower(func.concat('%', SuppsMedsInteraction.ingredient, '%'))),
+                    
+                    # 특정 의약품 성분 매칭
+                    func.lower(SuppsMedsInteraction.eng_caution_drug).like(f"%{med_ingr_clean}%")
+                ).first()
+
+                if specific_interaction_query:
+                    warning_message = specific_interaction_query[0]
+                    interactions.append({
+                        "product1_name": supp['name'],
+                        "ingredient1": supp_ingr,
+                        "product2_name": med['name'],
+                        "ingredient2": safe_ingredient_str(med.get('korName', '')), # 한국어 성분명 사용
+                        "level": 1,
+                        "message": warning_message
+                    })
+                    max_level = max(max_level, 1)
 
     # ==========================
     # 2️⃣ 의약품 - 의약품 상호작용 검색 (level 2)
@@ -236,25 +308,38 @@ def analyze_result():
             for j in range(i + 1, len(meds)):
                 med1 = meds[i]
                 med2 = meds[j]
-                ingr1 = med1.get('ingredients', '').strip()
-                ingr2 = med2.get('ingredients', '').strip()
+                
+                # 안전한 성분 문자열 추출
+                ingr1 = safe_ingredient_str(med1.get('ingredients', ''))
+                ingr2 = safe_ingredient_str(med2.get('ingredients', ''))
+                
+                if not ingr1 or not ingr2:
+                    continue
 
-                # 금기성분 테이블 조회
+                # 금기성분 테이블 조회를 위한 성분 표준화
+                ingr1_clean = ingr1.strip().split('(')[0].lower()
+                ingr2_clean = ingr2.strip().split('(')[0].lower()
+                
+                # 금기성분 테이블 조회 (DB 쿼리)
                 query = db.session.query(Interaction.금기사유).filter(
                     or_(
-                        (Interaction.성분명1 == ingr1) & (Interaction.성분명2 == ingr2),
-                        (Interaction.성분명1 == ingr2) & (Interaction.성분명2 == ingr1)
+                        (Interaction.성분명1 == ingr1_clean) & (Interaction.성분명2 == ingr2_clean),
+                        (Interaction.성분명1 == ingr2_clean) & (Interaction.성분명2 == ingr1_clean)
                     )
                 ).distinct().all()
 
+                # korName 추출 (med1에서만 추출하는 것이 아니라, 각 제품에서 추출해야 함)
+                kor_ingr1 = safe_ingredient_str(med1.get('korName', ''))
+                kor_ingr2 = safe_ingredient_str(med2.get('korName', ''))
+                
                 if query:
                     for row in query:
                         warning_message = row[0]
                         interactions.append({
                             "product1_name": med1['name'],
-                            "ingredient1": ingr1,
+                            "ingredient1": kor_ingr1, # 한국어 성분명 사용 (process_ingredients는 불필요)
                             "product2_name": med2['name'],
-                            "ingredient2": ingr2,
+                            "ingredient2": kor_ingr2, # 한국어 성분명 사용
                             "level": 2,
                             "message": warning_message
                         })
@@ -267,7 +352,9 @@ def analyze_result():
 
     # 의약품
     for med in meds:
-        ingr = med.get('ingredients', '').strip()
+        # 🚨 여기서 오류가 발생할 수 있었으므로, safe_ingredient_str 적용
+        ingr = safe_ingredient_str(med.get('ingredients', ''))
+        
         if not ingr:
             continue
         ingredient_map.setdefault(ingr, []).append(med['name'])
@@ -276,7 +363,8 @@ def analyze_result():
     for supp in supps:
         supp_ingredients = extract_supp_ingredients(supp.get('ingredients', ''))
         for ingr in supp_ingredients:
-            ingr_clean = ingr.split('(')[0].strip()
+            # extract_supp_ingredients에서 이미 괄호 안의 내용이 제거됨
+            ingr_clean = ingr.strip() 
             ingredient_map.setdefault(ingr_clean, []).append(supp['name'])
 
     for ingr, names in ingredient_map.items():
@@ -297,5 +385,8 @@ def analyze_result():
         "duplicates": duplicates,
         "interactions": interactions
     }
+
+    print("AI 분석 결과:==================================")
+    print(response)
 
     return jsonify(response)
