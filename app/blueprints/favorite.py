@@ -68,9 +68,13 @@ def get_favorite_list():
 
 # 찜 상태 확인
 @bp.get('/check/<int:goodsId>')
-@jwt_required()
+@jwt_required(optional=True)
 def check_favorite_status(goodsId):
   user_id = get_jwt_identity()
+
+  if user_id is None:
+    return jsonify({'ok':True, 'is_favorite':False}), 200
+  
   try:
     favorite_item = Favorite.query.filter_by(goods_id=goodsId, user_id=user_id).first()
 

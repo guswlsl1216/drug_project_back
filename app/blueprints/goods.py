@@ -23,9 +23,10 @@ SORT_MAP = {
 
 # 상품 목록 조회 및 정렬/필터링
 @bp.get('/')
+@jwt_required(optional=True)
 def get_goods_list():
   try:
-    raw_user_id = None
+    raw_user_id = get_jwt_identity()
     user_id = None
 
     auth_header = request.headers.get('Authorization')
@@ -57,12 +58,9 @@ def get_goods_list():
     # 카테고리 필터링 로직
     if category_value and category_value != 'All':
 
-      if category_key == 'All' or category_key not in FILTER_MAP:
-        pass
-      else:
+      if category_key in FILTER_MAP:
         filter_field = FILTER_MAP.get(category_key)
-        if filter_field is not None:
-          query = query.filter(filter_field == category_value)
+        query = query.filter(filter_field == category_value)
 
     # 정렬 로직
     sort_field = SORT_MAP.get(sort_by)
@@ -86,7 +84,7 @@ def get_goods_list():
 
       goods_dict['is_favorite'] = False
 
-      if user_id is not None:
+      if user_id is not None: # 로그인 했을 때만 실행되는 찜 상태 확인
         favorite_item = Favorite.query.filter_by(goods_id=item.id, user_id=user_id).first()
         if favorite_item:
           goods_dict['is_favorite'] = True
@@ -109,8 +107,11 @@ def get_goods_list():
 
 # 상품 상세 정보 조회
 @bp.get('/<int:goodsId>')
+@jwt_required(optional=True)
 def get_goods_detail(goodsId):
   try:
+    user_id = get_jwt_identity()
+
     # 상품ID로 조회 및 판매 활성화된 상품만 필터링
     product = Goods.query.filter_by(id=goodsId, is_active=True).first()
 
@@ -118,6 +119,18 @@ def get_goods_detail(goodsId):
       return jsonify({'ok':False, 'message':'상품을 찾을 수 없습니다.'}), 404
     
     response_data = product.to_dict()
+
+    response_data['is_favorite'] = False
+    if user_id is not None:
+      try:
+        user_id = int(user_id)
+      except:
+        user_id = None
+      
+      if user_id is not None:
+        favorite_item = Favorite.query.filter_by(goods_id=goodsId, user_id=user_id).first()
+        if favorite_item:
+          response_data['is_favorite'] = True
 
     return jsonify({'ok':True, 'product':response_data}), 200
   
