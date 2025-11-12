@@ -10,9 +10,85 @@ from ..utils.requires_ownership import requires_ownership
 from ..extensions import db
 from ..models.analyze_result import Analyze_result
 
+from ultralytics import YOLO
+import io
+from PIL import Image
+import os
+
+# analyze_result.py가 위치한 폴더의 경로 (drug_project_back/app/blueprints)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# blueprint -> app -> drug_project_back
+PROJECT_ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..'))
+
+# 최종 모델 경로를 절대 경로로 조합
+MODEL_PATH = os.path.join(
+  PROJECT_ROOT_DIR,
+  'runs',
+  'detect',
+  'train',
+  'weights',
+  'best.pt'
+)
+
+print(f"모델 예상 절대 경로: {MODEL_PATH}")
+
+try:
+  yolo_model = YOLO(MODEL_PATH)
+  print("YOLO 모델 서버에 성공적으로 로드")
+except Exception as e:
+  print(f"모델 로드 오류: {e}")
+  yolo_model = None # 로드 실패 시 None으로 설정
+
 bp = Blueprint('analyze_result', __name__)
 MP = get_class("meds_products")
 SP = get_class("supps_products")
+
+
+@bp.post('/detect')
+def detect_drug_label():
+
+  # 모델 로드 상태 확인
+  if yolo_model is None:
+    return jsonify({"ok":False, "message": "모델이 메모리에 로드되지 않았습니다."}), 503
+  
+  # 파일 첨부 여부 확인
+  if 'file' not in request.files:
+    return jsonify({'ok': False, "message": "이미지 파일이 필요합니다. (file 키 누락)"}), 400
+
+  file = request.files['file']
+
+  try:
+    image_bytes = file.read()
+    image = Image.open(io.BytesIO(image_bytes))
+
+    # conf: 0.25 이상의 신뢰도만 반환
+    results = yolo_model(image, imgsz=640, conf=0.25)
+
+    detections = []
+    for r in results:
+      boxes = r.boxes.xyxy.cpu().tolist()
+      confs = r.boxes.conf.cpu().tolist()
+      cls = r.boxes.cls.cpu().tolist()
+
+      for box, conf, cl in zip(boxes, confs, cls):
+
+        drug_id = yolo_model.names[int(cl)]
+        print(f"✅ 탐지된 약물: ID={drug_id}, 신뢰도={round(conf, 4)}")
+
+        detections.append({
+          "box": [round(x) for x in box],
+          "confidence": round(conf, 4),
+          "class_id": int(cl),
+          "class_name": yolo_model.names[int(cl)]
+        })
+
+    return jsonify({"ok":True, "message":"이미지 탐지 완료", "detections":detections}), 200
+  
+  except Exception as e:
+    print(f"YOLOv8 추로 API 오류 발생: {e}")
+    return jsonify({"ok":False, "message":f"추론 중 서버 내부 오류 발생: {str(e)}"}), 500
+
 
 # 분석 후 약 id로 정보 불러오기
 @bp.get('/info/<int:product_id>')
