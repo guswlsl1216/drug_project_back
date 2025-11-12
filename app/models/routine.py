@@ -14,6 +14,7 @@ class Routine(db.Model):
   end_date = db.Column(db.Date, nullable=False)
   count = db.Column(db.Integer, nullable=False) 
   eattime = db.Column(JSON, default=lambda: [False, False, False]) #아침 점심 저녁
+  note = db.Column(db.String(255), nullable=False)
   
   def to_dict(self):
     return{
@@ -23,5 +24,6 @@ class Routine(db.Model):
       'eattime':self.eattime,
       'count':self.count,
       'start_date':self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
-      'end_date':self.end_date.strftime('%Y-%m-%d') if self.end_date else None
+      'end_date':self.end_date.strftime('%Y-%m-%d') if self.end_date else None,
+      'note' :self.note
     }
