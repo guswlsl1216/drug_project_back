@@ -5,6 +5,10 @@ from flask import current_app
 
 from alembic import context
 
+# ★ ADD
+import os
+from alembic.operations import ops as alembic_ops  # DropTableOp 감지용
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -50,19 +54,20 @@ def get_metadata():
         return target_db.metadatas[None]
     return target_db.metadata
 
-AUTOMAP_SKIP = {
-    "supps_products", "meds_products", 
-    "drug_contraindications", "supps_meds_interaction"
-}
+AUTOMAP_SKIP = {"supps_products", "meds_products", "supps_meds_interaction", "drug_contraindications"}
 
 def include_object(object, name, type_, reflected, compare_to):
     """
-    Alembic autogenerate 시, 특정 테이블들을 대상에서 제외.
-    - type_ == "table": 테이블 자체 생성/삭제/변경
-    - 필요 시 index/constraint도 name으로 필터링 가능
+    Alembic autogenerate 시 비교 대상 필터
     """
-    if type_ == "table" and name in AUTOMAP_SKIP:
-        return False
+    if type_ == "table":
+        # 1) automap만 쓰는 테이블은 무조건 제외
+        if name in AUTOMAP_SKIP:
+            return False
+        # ★ ADD 2) '메타데이터에 없는(=DB에만 있는)' 테이블도 제외
+        meta_tables = set(get_metadata().tables.keys())
+        if reflected and name not in meta_tables:
+            return False
     return True
 
 def run_migrations_offline():
@@ -79,7 +84,12 @@ def run_migrations_offline():
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True, include_object=include_object
+        url=url, 
+        target_metadata=get_metadata(), 
+        literal_binds=True, 
+        include_object=include_object,
+        compare_type=True,
+        compare_server_default=True,
     )
 
     with context.begin_transaction():
@@ -97,18 +107,32 @@ def run_migrations_online():
     # this callback is used to prevent an auto-migration from being generated
     # when there are no changes to the schema
     # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
-    def process_revision_directives(context, revision, directives):
+    def process_revision_directives(context_, revision, directives):
         if getattr(config.cmd_opts, 'autogenerate', False):
             script = directives[0]
             if script.upgrade_ops.is_empty():
                 directives[:] = []
                 logger.info('No changes in schema detected.')
+                return
+            # ★ ADD: ALLOW_DROPS 없으면 DropTable 차단
+            if os.getenv("ALLOW_DROPS") != "1":
+                new_ops = []
+                for op in script.upgrade_ops.ops:
+                    if isinstance(op, alembic_ops.DropTableOp):
+                        logger.warning(f"[SAFE-GUARD] DropTableOp blocked: {op.table_name}")
+                        continue
+                    new_ops.append(op)
+                script.upgrade_ops.ops = new_ops
 
     conf_args = current_app.extensions['migrate'].configure_args
     if conf_args.get("process_revision_directives") is None:
         conf_args["process_revision_directives"] = process_revision_directives
-    
-    conf_args.setdefault("include_object", include_object)
+
+    # include_object을 강제로 설정(외부에서 덮지 못하게)
+    conf_args["include_object"] = include_object
+    # ★ ADD
+    conf_args.setdefault("compare_type", True)
+    conf_args.setdefault("compare_server_default", True)
 
     connectable = get_engine()
 

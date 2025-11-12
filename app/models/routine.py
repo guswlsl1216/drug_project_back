@@ -7,13 +7,14 @@ class Routine(db.Model):
   __tablename__='routine'
 
   id = db.Column(db.Integer, primary_key=True)
-  drug_id = db.Column(db.Integer, nullable=False, unique=True) #db.ForeignKey('drug.id')
-  author_id = db.Column(db.Integer, nullable=False) #db.ForeignKey('users.id')
-  # author=db.relationship('User',backref=db.backref('routine'))
+  drug_id = db.Column(db.Integer, nullable=False)
+  author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+  author=db.relationship('User',backref=db.backref('routine'))
   start_date = db.Column(db.Date, nullable=False)
   end_date = db.Column(db.Date, nullable=False)
   count = db.Column(db.Integer, nullable=False) 
   eattime = db.Column(JSON, default=lambda: [False, False, False]) #아침 점심 저녁
+  note = db.Column(db.String(255), nullable=False)
   
   def to_dict(self):
     return{
@@ -22,6 +23,7 @@ class Routine(db.Model):
       'drug_category':'영양제', #test self.drug.category
       'eattime':self.eattime,
       'count':self.count,
-      'start_date':self.start_date.strftime('%m-%d') if self.start_date else None,
-      'end_date':self.end_date.strftime('%m-%d') if self.end_date else None
+      'start_date':self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
+      'end_date':self.end_date.strftime('%Y-%m-%d') if self.end_date else None,
+      'note' :self.note
     }
