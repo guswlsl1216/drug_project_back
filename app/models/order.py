@@ -1,5 +1,10 @@
 from ..extensions import db
 from datetime import datetime
+from sqlalchemy import Enum
+
+order_status_enum = Enum(
+  'PENDING', 'PAID', 'CANCELLED', 'REFUNDED', name='order_status'
+)
 
 class Order(db.Model):
   __tablename__ = 'orders'
@@ -15,15 +20,16 @@ class Order(db.Model):
   receiver = db.Column(db.String(50), nullable=False)
   phone = db.Column(db.String(20), nullable=False)
   payments = db.relationship('Payment', back_populates='orders', cascade='all, delete-orphan')
-  payment_at = db.Column(db.DateTime, default = datetime.now)
-  update_at = db.Column(db.DateTime, default = datetime.now, onupdate=datetime.now)
+  payment_at = db.Column(db.DateTime, nullable=True)
+  update_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
 
   def to_dict(self):
+    u = self.user
     return {
       'id' : self.id,
       'user' : {
         'id' : self.user_id,
-        'nickname' : self.user.nickname
+        'nickname': getattr(u, 'nickname', None),
       },
       'total_price' : self.total_price,
       'total_count' : self.total_count,

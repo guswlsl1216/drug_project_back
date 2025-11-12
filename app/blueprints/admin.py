@@ -3,6 +3,8 @@ from ..extensions import db
 from ..models.goods import Goods
 from flask_jwt_extended import jwt_required
 from ..utils.auth_user import get_current_user
+from ..models.orderitem import OrderItem
+from ..models.cart import Cart
 
 bp = Blueprint('admin', __name__)
 
@@ -50,8 +52,7 @@ def write_goods():
   from ..utils.sanitize import sanitize_html
   goods_desc = sanitize_html(goods_desc)
 
-  user = get_current_user()
-  user_id = user["id"] if user else None
+  user_id = get_current_user()
   
   goods = Goods(
     category=category,
@@ -143,6 +144,16 @@ def image_upload():
     "filename": filename
   }), 200
 
+@bp.get('/goods/<int:id>')
+@jwt_required()
+def get_goods(id):
+  goods = db.session.query(Goods).get(id)
+
+  if not goods:
+    return jsonify({'ok' : False, 'message' : '상품을 찾을 수 없습니다.'}), 404
+  
+  return jsonify({'ok' : True, 'goods' : goods.to_dict()}), 200
+
 # 상품 수정
 @bp.put("/edit/<int:id>")
 @jwt_required()
@@ -187,8 +198,12 @@ def edit_goods(id):
   
   goods = db.session.query(Goods).get(id)
 
-  user = get_current_user()
-  user_id = user["id"] if user else None
+  user_id = get_current_user()
+
+  try:
+    user_id = int(user_id)
+  except Exception:
+      user_id = None
 
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
@@ -221,8 +236,12 @@ def edit_goods(id):
 def delete_goods(id):
   goods = db.session.query(Goods).get(id)
 
-  user = get_current_user()
-  user_id = user["id"] if user else None
+  user_id = get_current_user()
+  
+  try:
+    user_id = int(user_id)
+  except Exception:
+      user_id = None
 
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
@@ -230,15 +249,25 @@ def delete_goods(id):
   if goods.user_id != user_id:
     return jsonify({'ok' : False, 'message' : '작성자만 삭제 가능합니다'}), 403
   
+  from sqlalchemy import func
+  order_count = (db.session.query(func.count(OrderItem.id))
+                .filter(OrderItem.goods_id == id)
+                .scalar())
+  
   try:
-    db.session.delete(goods)
-    db.session.commit()
+    if order_count > 0:
+      goods.is_active = False
+      Cart.query.filter_by(goods_id=id).delete(synchronize_session=False)
+      db.session.commit()
+      return jsonify({'ok' : True, 'message' : '주문 이력이 있어 판매 중지 처리했습니다.'}), 200
+    else:
+      db.session.delete(goods)
+      db.session.commit()
+      return jsonify({'ok' : True, 'message' : '상품 삭제 완료'}), 200
   except Exception:
     db.session.rollback()
-    return jsonify({'ok' : False, 'message' : '상품 삭제 실패'}), 500
+    return jsonify({'ok' : False, 'message' : '상품 삭제 처리에 실패했습니다.'}), 500
   
-  return jsonify({'ok' : True, 'message' : '상품 삭제 완료'}), 200
-
 # 품절 상품
 @bp.get("/goods/soldout")
 def get_soldout_goods():
@@ -265,7 +294,7 @@ def get_soldout_goods():
 @bp.get('/goods')
 def board_list():
   page = request.args.get('page', type=int, default=1)
-  per_page = 10
+  per_page = request.args.get("per_page", 10, type=int)
   goods_q = Goods.query.order_by(Goods.create_at.desc())
   pagination = goods_q.paginate(page=page , per_page=per_page)
 
