@@ -5,7 +5,7 @@ from flask_login import current_user
 
 bp = Blueprint('user_drugs', __name__)
 
-@bp.post('/drugs')
+@bp.post('/drugs/<drug_id>')
 def add_drugs():
 
   data = request.get_json()
