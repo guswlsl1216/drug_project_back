@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models.user_drugs import User_drugs
+from app.models.user_drugs import User_drug
 from flask_login import current_user
 
 bp = Blueprint('user_drugs', __name__)
