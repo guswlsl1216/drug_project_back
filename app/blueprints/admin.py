@@ -5,6 +5,11 @@ from flask_jwt_extended import jwt_required
 from ..utils.auth_user import get_current_user
 from ..models.orderitem import OrderItem
 from ..models.cart import Cart
+from ..models.payment import Payment
+from ..models.order import Order
+from ..models.user import User
+from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 bp = Blueprint('admin', __name__)
 
@@ -308,5 +313,77 @@ def board_list():
     "per_page": per_page
   }), 200
   
+@bp.get('/payments')
+def payments_list():
+  page = request.args.get('page', type=int, default=1)
+  per_page = request.args.get("per_page", 10, type=int)
 
+  status = request.args.get("status")
+  method = request.args.get("method")
+  query = request.args.get("query")
+
+  payment_q = Payment.query.join(User).order_by(Payment.created_at.desc())
+
+  # 결제 상태 필터
+  if status:
+    payment_q = payment_q.filter(Payment.status == status)
   
+  # 결제 방법 필터
+  if method:
+    payment_q = payment_q.filter(Payment.method == method)
+
+  # 검색어 (주문번호 OR 주문자명)
+  if query:
+    # .isdigit() : 모든 문자가 숫자이면 True, 하나라도 숫자가 아닌 문자가 포함되어 있으면 False를 반환
+    if query.isdigit():
+      # 숫자 → 주문ID 검색
+      payment_q = payment_q.filter(Payment.orders_id == int(query))
+    else:
+      # 문자열 → 유저 닉네임 검색
+      payment_q = payment_q.filter(User.nickname.like(f"%{query}%"))
+
+  pagination = payment_q.paginate(page=page, per_page=per_page)
+  approved_sum = db.session.query(func.coalesce(func.sum(Payment.amount), 0)).filter(Payment.status == "APPROVED").scalar()
+  cancelled_sum = db.session.query(func.coalesce(func.sum(Payment.amount), 0)).filter(Payment.status == "CANCELLED").scalar()
+  refunded_sum = db.session.query(func.coalesce(func.sum(Payment.amount), 0)).filter(Payment.status == "REFUNDED").scalar()
+
+  return jsonify({
+    "ok" : True,
+    'payments': [p.to_dict() for p in pagination.items],
+    'total' : pagination.total,
+    'page' : pagination.page,
+    'pages' : pagination.pages,
+    'per_page': per_page,
+    'approved_sum' : approved_sum,
+    'cancelled_sum' : cancelled_sum,
+    'refunded_sum' : refunded_sum
+  }), 200
+
+@bp.get('/orders/<int:orders_id>')
+def orderDetali(orders_id):
+  order = db.session.query(Order).get(orders_id)
+
+  if not order:
+    return jsonify({'ok' : False, 'message' : '주문 내역을 찾을 수 없습니다.'}), 404
+  
+  # 주문 아이템 목록 + Goods 미리 로드
+  items = (
+    db.session.query(OrderItem) # OrderItem 테이블 기준으로 쿼리
+    .options(selectinload(OrderItem.goods)) # type: ignore[operator] , 관련된 Goods들 한 번에 로드
+    .filter(OrderItem.orders_id == orders_id) # 이 주문에 속한 아이템들만 필터링.
+    .all()
+  )
+
+  # 응답 조립
+  data = order.to_dict()
+  
+  data["items"] = [{
+    "goods_id": it.goods_id,
+    "goods_name": getattr(it.goods, "goods_name", None),
+    "image": getattr(it.goods, "image_path", None),
+    "unit_price": it.unit_price,
+    "count": it.count,
+    "subtotal": it.subtotal,
+  } for it in items]
+  
+  return jsonify({'ok' : True, 'order' : data}), 200

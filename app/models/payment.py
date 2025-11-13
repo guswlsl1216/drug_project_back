@@ -26,7 +26,7 @@ class Payment(db.Model):
     order = self.orders 
     return {
       'id' : self.id,
-      'order_id': self.orders_id,
+      'orders_id': self.orders_id,
       'orders': {
         'status': getattr(order, 'status', None),
         'total_price': getattr(order, 'total_price', None),
