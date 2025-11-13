@@ -1,6 +1,9 @@
 from datetime import datetime
 
 from sqlalchemy import JSON
+
+from app.models.auto import get_class
+from app.models.user_meds import User_meds
 from ..extensions import db
 
 class Routine(db.Model):
@@ -19,11 +22,19 @@ class Routine(db.Model):
   def to_dict(self):
     return{
       'id': self.id,
-      'drugName':'오메가3', #test self.drug.drugName
-      'drug_category':'영양제', #test self.drug.category
+      'drugName':self.getName(self.drug_id),
       'eattime':self.eattime,
       'count':self.count,
       'start_date':self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
       'end_date':self.end_date.strftime('%Y-%m-%d') if self.end_date else None,
       'note' :self.note
     }
+    
+  def getName(self,id):
+    if(id>100000):
+      SP = get_class("supps_products")
+      drug = db.session.query(SP).filter(SP.id == id).first()
+      return drug.PRDLST_NM
+    else:
+      drug = db.session.query(User_meds).filter(User_meds.id == id).first()
+      return drug.meds_title
