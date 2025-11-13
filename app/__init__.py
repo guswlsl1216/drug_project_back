@@ -39,6 +39,8 @@ def create_app():
   from .blueprints.auth import bp as auth_bp
   from .blueprints.login import bp as login_bp
   from .blueprints.protected import bp as protected_bp
+  from .blueprints.goods import bp as goods_bp
+  from .blueprints.favorite import bp as favorite_bp
   from .blueprints.analyze_result import bp as analyze_result_bp
   from .blueprints.aiAnalyze import bp as aiAnalyze_bp
   from .blueprints.admin import bp as admin_bp
@@ -53,6 +55,8 @@ def create_app():
   app.register_blueprint(auth_bp, url_prefix='/auth')
   app.register_blueprint(login_bp, url_prefix='/login')
   app.register_blueprint(protected_bp, url_prefix='/user_protected')
+  app.register_blueprint(goods_bp, url_prefix='/goods')
+  app.register_blueprint(favorite_bp, url_prefix='/favorite')
   app.register_blueprint(analyze_result_bp, url_prefix='/result')
   app.register_blueprint(aiAnalyze_bp, url_prefix='/aiAnalyze')
   app.register_blueprint(admin_bp, url_prefix='/admin')
