@@ -5,10 +5,12 @@ from flask_login import current_user, login_required
 from app import db
 from app.models.routine import Routine
 from app.models.routine_log import Routine_log
+from app.models.user_meds import User_meds
 
 from sqlalchemy import func
 from app.models.auto import get_class
 from ..models.user import User
+from datetime import date
 
 bp = Blueprint('routine', __name__)
 SP = get_class("supps_products") 
@@ -40,8 +42,29 @@ def addRoutine():
     return jsonify({'ok':False, 'message':'수신오류'}),400
   
   drug_id=data.get('drug_id')
-  author_id=g.user.id
 
+  if drug_id is None:
+    # 프론트에서 보내준 사용자가 입력한 복용약 이름을 꺼내옴
+    # 테이블 검색, 없으면 추가
+    # 그 복용약에 대한 id 생김
+    # 그걸 drug_id에 넣음
+    med_name = data.get('name')
+
+    if not med_name:
+      return jsonify({'ok' : False, 'message' : '복용약 이름 누락'}), 400
+
+    existing_med = User_meds.query.filter_by(med_title=med_name).first()
+    
+    if existing_med:
+      drug_id = existing_med.id
+    else:
+      new_med = User_meds(med_title=med_name)
+      db.session.add(new_med)
+      db.session.commit() # commit 하면서 id 생김 
+      drug_id = new_med.id
+    
+  author_id=g.user.id
+  drug_id=drug_id
   eattime=data.get('eattime')
   note=data.get('note')
   start_date=data.get('start_date')
@@ -58,6 +81,8 @@ def addRoutine():
 #루틴 삭제
 @bp.delete('/deleteRoutine/<routineId>')
 def deleteRoutine(routineId):
+  print("============")
+  print(routineId, g.user.id)
   routine=db.session.query(Routine).get(routineId)
   if routine.author_id == g.user.id:
     db.session.delete(routine)
@@ -76,6 +101,7 @@ def updateRoutine(routineId):
     eattime=data.get('eattime')
     start_date=data.get('start_date')
     end_date=data.get('end_date')
+    note=data.get('note')
 
     current_routine.eattime=eattime
     current_routine.start_date=start_date
@@ -128,7 +154,7 @@ def getRoutine():
   # user_id = user.id
   # routines = user.routine
   ###################################
-  
+
   user_id = g.user.id
   routine_list=[]
   routines = g.user.routine
@@ -193,3 +219,136 @@ def searchDrug():
         'medicines': data 
   })
   
+# 약/영양제 유저 id로 한번에 조회하는 기능
+@bp.get('/getUserDrugs/<int:user_id>')
+def get_user_drugs(user_id):
+  
+ # 유저 루틴 목록 가져오기 
+  user_routines = db.session.query(Routine).filter_by(author_id=user_id).all()
+
+  if not user_routines:
+    return jsonify({ 'ok' : False , 'message' : '등록된 루틴이 없습니다. '})
+  
+  # id 기준 분류 
+  supp_ids = [ r.drug_id for r in user_routines if int (r.drug_id) > 100000 ]
+  med_ids = [ r.drug_id for r in user_routines if int (r.drug_id) <= 100000 ]
+
+  result = []
+
+  # 영양제 & 약 : join 하기 
+  supp_data = (
+    db.session.query(Routine, SP)
+    .join(SP, Routine.drug_id == SP.id)
+    .filter(Routine.author_id == user_id, Routine.drug_id.in_(supp_ids))
+    .all()
+  ) if supp_ids else []
+
+  med_data = (
+    db.session.query(Routine, MP)
+    .join(MP, Routine.drug_id == MP.id)
+    .filter(Routine.author_id == user_id, Routine.drug_id.in_(med_ids))
+    .all()
+  ) if med_ids else []
+
+  # data 들 정리
+  for routine, supp in supp_data:
+    result.append({
+      'id' : routine.id,
+      'type' : 'supplement',
+      'drug_id' : routine.drug_id,
+      'drugName' : supp.PRDLST_NM,
+      'method' : supp.NTK_MTHD,
+      'notice' : supp.IFTKN_ATNT_MATR_CN,
+      'effect' : supp.PRIMARY_FNCLTY,
+      'start_date' : routine.start_date,
+      'end_date' : routine.end_date,
+      'note' : routine.note,
+      'eattime' : routine.eattime    
+      })
+
+# 'drugName':drug.PRDLST_NM, 'method':drug.NTK_MTHD, 'notice':drug.IFTKN_ATNT_MATR_CN, 'effect':drug.PRIMARY_FNCLTY})
+# 'drugName':drug.ITEM_NAME, 'method':drug.UD_DOC_TXT, 'notice':drug.NB_DOC_TXT, 'effect':drug.EE_DOC_TXT})
+
+  for routine, med in med_data:
+    result.append({
+      'id' : routine.id,
+      'type' : 'medicine',
+      'drug_id' : routine.drug_id,
+      'drugName' : med.ITEM_NAME,
+      'method' : med.UD_DOC_TXT,
+      'notice': med.NB_DOC_TXT,
+      'effect': med.EE_DOC_TXT,
+      'start_date' : routine.start_date,
+      'end_date' : routine.end_date,
+      'note' : routine.note,
+      'eattime' : routine.eattime
+    })
+
+  return jsonify({ 'ok' : True, 'drugs' : result})
+  
+# 알약 히스토리 불러오기 달성률...
+@bp.get('/getDrugHistory/<int:user_id>')
+def get_drug_history(user_id):
+
+  today = date.today()
+
+  # 유저 루틴 목록 조회 
+  routines = Routine.query.filter(
+    Routine.author_id == user_id,
+    Routine.start_date <= today,
+    Routine.end_date <= today).all() # 조건 추가 걸기 ( enddate , today 만족하는것만 가져오게 ) 
+
+  if not routines:
+    return jsonify({'ok' : False, 'message' : '완료된 루틴이 없습니다.' }), 404
+  
+  result = []
+  total_taken_all = 0
+  total_should_take_all = 0
+
+  for r in routines:
+    
+    total_days = (r.end_date - r.start_date).days + 1 # 복용기간
+    total_should_take = total_days * r.count  # 복용기간 동안 먹어야 하는 약 개수 
+
+    # 로그 가져오기 
+    logs = Routine_log.query.filter_by(routine_id=r.id).all()
+
+    # 실제 복용 횟수 
+    total_taken = 0
+    for log in logs:
+      for taken in log.performed_times:
+        if taken:
+          total_taken += 1 
+  
+    # 루틴 단위 누적
+    total_taken_all += total_taken
+    total_should_take_all += total_should_take
+
+    # 루틴 별 달성률 계산
+    achievement = round((total_taken / total_should_take) * 100, 1) if total_should_take_all > 0 else 0 # 0으로 나눠버리는 경우 방지
+
+    # 약 이름 담아야 함 이름가져오게 join 해서 
+    if int(r.drug_id) > 100000:
+      drug = db.session.query(SP).filter(SP.id == r.drug_id).first()
+      drug_name = drug.PRDLST_NM
+    else:
+      drug = db.session.query(MP).filter(MP.id == r.drug_id).first()
+      drug_name = drug.ITEM_NAME
+
+    # result에 담기 
+    result.append({
+      'drug_name' : drug_name,
+      'period' : f"{r.start_date.strftime('%Y-%m-%d')} ~ {r.end_date.strftime('%Y-%m-%d')}",
+      'achievement' : achievement
+    })
+    # 전체 달성률 
+  total_achievement = round((total_taken_all / total_should_take_all) * 100, 1) if total_should_take_all > 0 else 0
+    
+  return jsonify({
+    'ok' : True,
+    'history' : result,
+    'total_achievement' : total_achievement
+  }), 200
+
+
+
