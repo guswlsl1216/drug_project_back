@@ -106,6 +106,7 @@ def updateRoutine(routineId):
     current_routine.eattime=eattime
     current_routine.start_date=start_date
     current_routine.end_date=end_date
+    current_routine.note=note
 
     db.session.add(current_routine)
     db.session.commit()
@@ -221,7 +222,6 @@ def searchDrug():
   
 # 약/영양제 유저 id로 한번에 조회하는 기능
 @bp.get('/getUserDrugs/<int:user_id>')
-@bp.get('/getUserDrugs/<int:user_id>')
 def get_user_drugs(user_id):
     """
     유저 루틴 목록 조회
@@ -265,46 +265,51 @@ def get_user_drugs(user_id):
             })
 
     # --- MP(기본 약) join ---
-    mp_map = {}
-    if med_ids:
-        med_data = (
-            db.session.query(Routine, MP)
-            .join(MP, Routine.drug_id == MP.id)
-            .filter(Routine.author_id == user_id, Routine.drug_id.in_(med_ids))
-            .all()
-        )
-        for routine, med in med_data:
-            mp_map[routine.drug_id] = routine
-            result.append({
-                'id': routine.id,
-                'type': 'medicine',
-                'drug_id': routine.drug_id,
-                'drugName': med.ITEM_NAME,
-                'method': med.UD_DOC_TXT,
-                'notice': med.NB_DOC_TXT,
-                'effect': med.EE_DOC_TXT,
-                'start_date': routine.start_date,
-                'end_date': routine.end_date,
-                'note': routine.note,
-                'eattime': routine.eattime
-            })
+    # mp_map = {}
+    # if med_ids:
+    #     med_data = (
+    #         db.session.query(Routine, MP)
+    #         .join(MP, Routine.drug_id == MP.id)
+    #         .filter(Routine.author_id == user_id, Routine.drug_id.in_(med_ids))
+    #         .all()
+    #     )
+    #     for routine, med in med_data:
+    #         mp_map[routine.drug_id] = routine
+    #         result.append({
+    #             'id': routine.id,
+    #             'type': 'medicine',
+    #             'drug_id': routine.drug_id,
+    #             'drugName': med.ITEM_NAME,
+    #             'method': med.UD_DOC_TXT,
+    #             'notice': med.NB_DOC_TXT,
+    #             'effect': med.EE_DOC_TXT,
+    #             'start_date': routine.start_date,
+    #             'end_date': routine.end_date,
+    #             'note': routine.note,
+    #             'eattime': routine.eattime
+    #         })
 
     # --- User_meds(유저 직접 등록 약) join ---
-    user_med_ids = [id_ for id_ in med_ids if id_ not in mp_map]
-    if user_med_ids:
+    # user_med_ids = [id_ for id_ in med_ids]
+    if med_ids:
         user_meds_data = (
             db.session.query(Routine, User_meds)
             .join(User_meds, Routine.drug_id == User_meds.id)
-            .filter(Routine.author_id == user_id, Routine.drug_id.in_(user_med_ids))
+            .filter(Routine.author_id == user_id, Routine.drug_id.in_(med_ids))
             .all()
         )
+        print(user_meds_data)
+
         for routine, umed in user_meds_data:
+            
+            dayeat = routine.eattime.count(True)
+
             result.append({
                 'id': routine.id,
                 'type': 'user_meds',
                 'drug_id': routine.drug_id,
                 'drugName': umed.med_title,
-                'method': '',
+                'method': f'1일 {dayeat}회',
                 'notice': '',
                 'effect': '',
                 'start_date': routine.start_date,
