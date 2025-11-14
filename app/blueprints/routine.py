@@ -166,9 +166,9 @@ def getRoutine():
   counts={} #key=routine.id value=count
   for routine in routines:
     log = Routine_log.query.filter(Routine_log.routine_id == routine.id).all()
+    logs[routine.id]={}
+    counts[routine.id]={}
     if log:
-      logs[routine.id]={}
-      counts[routine.id]={}
       for i in log:
         date, pr = i.to_dict()
         logs[routine.id][date] = pr

@@ -13,7 +13,7 @@ class Order(db.Model):
   user = db.relationship('User', backref=db.backref('orders'))
   total_price = db.Column(db.Integer, nullable = False)
   total_count = db.Column(db.Integer, nullable = False)
-  status = db.Column(db.String(30), nullable=False)
+  status = db.Column(order_status_enum, nullable=False)
   zipcode = db.Column(db.String(10), nullable=False)
   address = db.Column(db.String(255), nullable=False)
   address_detail = db.Column(db.String(255), nullable=False)
