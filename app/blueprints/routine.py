@@ -250,11 +250,13 @@ def get_user_drugs(user_id):
             .all()
         )
         for routine, supp in supp_data:
+            dayeat = routine.eattime.count(True)
             result.append({
                 'id': routine.id,
                 'type': 'supplement',
                 'drug_id': routine.drug_id,
                 'drugName': supp.PRDLST_NM,
+                'selectTime' : f'1일 {dayeat}회',
                 'method': supp.NTK_MTHD,
                 'notice': supp.IFTKN_ATNT_MATR_CN,
                 'effect': supp.PRIMARY_FNCLTY,
@@ -309,7 +311,8 @@ def get_user_drugs(user_id):
                 'type': 'user_meds',
                 'drug_id': routine.drug_id,
                 'drugName': umed.med_title,
-                'method': f'1일 {dayeat}회',
+                'selectTime' : f'1일 {dayeat}회',
+                'method': '',
                 'notice': '',
                 'effect': '',
                 'start_date': routine.start_date,
