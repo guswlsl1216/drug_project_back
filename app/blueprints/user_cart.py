@@ -89,7 +89,7 @@ def post_goods(goods_id):
 
   return jsonify(result)
 
-# cart id로 삭제
+# cart id로 삭제 -> 다중 선택 삭제로 할 수 있도록 list 필요
 @bp.delete('/<int:cart_id>')
 @jwt_required()
 def delete_goods(cart_id):
@@ -98,8 +98,11 @@ def delete_goods(cart_id):
 
   if goods is None:
     return jsonify({'error':'해당 목록이 존재하지 않습니다.'})
+  
+  result = [goods]
+  for item in result:
+    db.session.delete(item)
 
-  db.session.delete(goods)
   db.session.commit()
 
   return jsonify({'id':cart_id})
