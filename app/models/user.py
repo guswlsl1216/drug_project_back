@@ -20,6 +20,7 @@ class User(db.Model, UserMixin):
   deleted_at = db.Column(db.DateTime, nullable=True)
   age = db.Column(db.Integer, nullable=True)
   gender = db.Column(db.String(10), nullable=True)
+  zipcode = db.Column(db.String(10), nullable=False)
   address = db.Column(db.String(200), nullable=True)
   detailed_address = db.Column(db.String(200), nullable=True)
   role = db.Column(db.Enum(RoleEnum), default=RoleEnum.USER)
@@ -62,6 +63,7 @@ class User(db.Model, UserMixin):
       'deleted_at':self.deleted_at,
       'age':self.age,
       'gender':self.gender,
+      'zipcode':self.zipcode,
       'address':self.address,
       'detailed_address':self.detailed_address,
       'role':self.role,
