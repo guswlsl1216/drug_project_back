@@ -96,22 +96,46 @@ def updateRoutine(routineId):
   data=request.get_json()
   if not data:
     return jsonify({'ok':False, 'message':'수신오류'}),400
+  
   current_routine=db.session.query(Routine).get(routineId)
+
   if current_routine.author_id == g.user.id:
-    eattime=data.get('eattime')
-    start_date=data.get('start_date')
-    end_date=data.get('end_date')
-    note=data.get('note')
+    try:
+      eattime=data.get('eattime')
+      start_date=data.get('start_date')
+      end_date=data.get('end_date')
+      note=data.get('note')
 
-    current_routine.eattime=eattime
-    current_routine.start_date=start_date
-    current_routine.end_date=end_date
-    current_routine.note=note
+      if eattime is not None:
+        current_routine.eattime=eattime
 
-    db.session.add(current_routine)
-    db.session.commit()
-    return jsonify({'ok':True, 'message':'수정 완료'}),200
+      if start_date:
+        current_routine.start_date=datetime.strptime(start_date, '%Y-%m-%d').date()
+      if end_date:
+        current_routine.end_date=datetime.strptime(end_date, '%Y-%m-%d').date()
+      
+      current_routine.note = note
+
+      db.session.add(current_routine)
+      db.session.commit()
+      return jsonify({'ok':True, 'message':'수정 완료'}),200
+    
+    except ValueError as e:
+      db.session.rollback()
+      return jsonify({'ok' : False, 'message' : f'날짜 형식 오류: {str(e)}'}), 400
+    
+    except Exception as e:
+      db.session.rollback()
+      return jsonify({'ok' : False, 'message': f'수정 실패 : {str(e)}'}), 500
+  
+
   return jsonify({'ok':False, 'message':'유저id가 일치하지 않습니다'})
+
+
+    # current_routine.eattime=eattime
+    # current_routine.start_date=start_date
+    # current_routine.end_date=end_date
+    # current_routine.note=note
 
 #루틴 수행
 @bp.post('/performed/<routineId>')
@@ -250,16 +274,18 @@ def get_user_drugs(user_id):
             .all()
         )
         for routine, supp in supp_data:
+            dayeat = routine.eattime.count(True)
             result.append({
                 'id': routine.id,
                 'type': 'supplement',
                 'drug_id': routine.drug_id,
                 'drugName': supp.PRDLST_NM,
+                'selectTime' : f'1일 {dayeat}회',
                 'method': supp.NTK_MTHD,
                 'notice': supp.IFTKN_ATNT_MATR_CN,
                 'effect': supp.PRIMARY_FNCLTY,
-                'start_date': routine.start_date,
-                'end_date': routine.end_date,
+                'start_date': routine.start_date.strftime('%Y-%m-%d') if routine.start_date else None,
+                'end_date': routine.end_date.strftime('%Y-%m-%d') if routine.end_date else None,
                 'note': routine.note,
                 'eattime': routine.eattime
             })
@@ -309,11 +335,12 @@ def get_user_drugs(user_id):
                 'type': 'user_meds',
                 'drug_id': routine.drug_id,
                 'drugName': umed.med_title,
-                'method': f'1일 {dayeat}회',
+                'selectTime' : f'1일 {dayeat}회',
+                'method': '',
                 'notice': '',
                 'effect': '',
-                'start_date': routine.start_date,
-                'end_date': routine.end_date,
+                'start_date': routine.start_date.strftime('%Y-%m-%d') if routine.start_date else None,
+                'end_date': routine.end_date.strftime('%Y-%m-%d') if routine.end_date else None,
                 'note': routine.note,
                 'eattime': routine.eattime
             })
