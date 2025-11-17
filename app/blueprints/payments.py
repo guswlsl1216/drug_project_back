@@ -168,9 +168,9 @@ def confirm_payment():
         payment = Payment(
           orders_id = order.id,
           user_id = user.id,
-          # paymentKey = paymentKey,
+          paymentKey = paymentKey,
           amount = toss_response['totalAmount'],
-          # type = toss_response['type'],
+          type = toss_response['type'],
           method = toss_response['method'],
           status = toss_response['status'],
           pg_tid = toss_response['lastTransactionKey'],
