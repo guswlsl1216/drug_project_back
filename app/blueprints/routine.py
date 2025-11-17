@@ -106,6 +106,7 @@ def updateRoutine(routineId):
     current_routine.eattime=eattime
     current_routine.start_date=start_date
     current_routine.end_date=end_date
+    current_routine.note=note
 
     db.session.add(current_routine)
     db.session.commit()
@@ -222,69 +223,103 @@ def searchDrug():
 # 약/영양제 유저 id로 한번에 조회하는 기능
 @bp.get('/getUserDrugs/<int:user_id>')
 def get_user_drugs(user_id):
-  
- # 유저 루틴 목록 가져오기 
-  user_routines = db.session.query(Routine).filter_by(author_id=user_id).all()
+    """
+    유저 루틴 목록 조회
+    - SP(영양제), MP(약), User_meds(직접 등록) 모두 포함
+    - user_routines 기준으로 처리
+    """
 
-  if not user_routines:
-    return jsonify({ 'ok' : False , 'message' : '등록된 루틴이 없습니다. '})
-  
-  # id 기준 분류 
-  supp_ids = [ r.drug_id for r in user_routines if int (r.drug_id) > 100000 ]
-  med_ids = [ r.drug_id for r in user_routines if int (r.drug_id) <= 100000 ]
+    # 1️⃣ 유저 루틴 목록 가져오기
+    user_routines = db.session.query(Routine).filter_by(author_id=user_id).all()
 
-  result = []
+    if not user_routines:
+        return jsonify({'ok': False, 'message': '등록된 루틴이 없습니다.'})
 
-  # 영양제 & 약 : join 하기 
-  supp_data = (
-    db.session.query(Routine, SP)
-    .join(SP, Routine.drug_id == SP.id)
-    .filter(Routine.author_id == user_id, Routine.drug_id.in_(supp_ids))
-    .all()
-  ) if supp_ids else []
+    result = []
 
-  med_data = (
-    db.session.query(Routine, MP)
-    .join(MP, Routine.drug_id == MP.id)
-    .filter(Routine.author_id == user_id, Routine.drug_id.in_(med_ids))
-    .all()
-  ) if med_ids else []
+    # 2️⃣ drug_id 기준 분류
+    supp_ids = [r.drug_id for r in user_routines if r.drug_id > 100000]  # SP
+    med_ids = [r.drug_id for r in user_routines if r.drug_id <= 100000]  # MP + User_meds
 
-  # data 들 정리
-  for routine, supp in supp_data:
-    result.append({
-      'id' : routine.id,
-      'type' : 'supplement',
-      'drug_id' : routine.drug_id,
-      'drugName' : supp.PRDLST_NM,
-      'method' : supp.NTK_MTHD,
-      'notice' : supp.IFTKN_ATNT_MATR_CN,
-      'effect' : supp.PRIMARY_FNCLTY,
-      'start_date' : routine.start_date,
-      'end_date' : routine.end_date,
-      'note' : routine.note,
-      'eattime' : routine.eattime    
-      })
+    # --- SP(영양제) join ---
+    if supp_ids:
+        supp_data = (
+            db.session.query(Routine, SP)
+            .join(SP, Routine.drug_id == SP.id)
+            .filter(Routine.author_id == user_id, Routine.drug_id.in_(supp_ids))
+            .all()
+        )
+        for routine, supp in supp_data:
+            result.append({
+                'id': routine.id,
+                'type': 'supplement',
+                'drug_id': routine.drug_id,
+                'drugName': supp.PRDLST_NM,
+                'method': supp.NTK_MTHD,
+                'notice': supp.IFTKN_ATNT_MATR_CN,
+                'effect': supp.PRIMARY_FNCLTY,
+                'start_date': routine.start_date,
+                'end_date': routine.end_date,
+                'note': routine.note,
+                'eattime': routine.eattime
+            })
 
-# 'drugName':drug.PRDLST_NM, 'method':drug.NTK_MTHD, 'notice':drug.IFTKN_ATNT_MATR_CN, 'effect':drug.PRIMARY_FNCLTY})
-# 'drugName':drug.ITEM_NAME, 'method':drug.UD_DOC_TXT, 'notice':drug.NB_DOC_TXT, 'effect':drug.EE_DOC_TXT})
+    # --- MP(기본 약) join ---
+    # mp_map = {}
+    # if med_ids:
+    #     med_data = (
+    #         db.session.query(Routine, MP)
+    #         .join(MP, Routine.drug_id == MP.id)
+    #         .filter(Routine.author_id == user_id, Routine.drug_id.in_(med_ids))
+    #         .all()
+    #     )
+    #     for routine, med in med_data:
+    #         mp_map[routine.drug_id] = routine
+    #         result.append({
+    #             'id': routine.id,
+    #             'type': 'medicine',
+    #             'drug_id': routine.drug_id,
+    #             'drugName': med.ITEM_NAME,
+    #             'method': med.UD_DOC_TXT,
+    #             'notice': med.NB_DOC_TXT,
+    #             'effect': med.EE_DOC_TXT,
+    #             'start_date': routine.start_date,
+    #             'end_date': routine.end_date,
+    #             'note': routine.note,
+    #             'eattime': routine.eattime
+    #         })
 
-  for routine, med in med_data:
-    result.append({
-      'id' : routine.id,
-      'type' : 'medicine',
-      'drug_id' : routine.drug_id,
-      'drugName' : med.ITEM_NAME,
-      'method' : med.UD_DOC_TXT,
-      'notice': med.NB_DOC_TXT,
-      'effect': med.EE_DOC_TXT,
-      'start_date' : routine.start_date,
-      'end_date' : routine.end_date,
-      'note' : routine.note,
-      'eattime' : routine.eattime
-    })
+    # --- User_meds(유저 직접 등록 약) join ---
+    # user_med_ids = [id_ for id_ in med_ids]
+    if med_ids:
+        user_meds_data = (
+            db.session.query(Routine, User_meds)
+            .join(User_meds, Routine.drug_id == User_meds.id)
+            .filter(Routine.author_id == user_id, Routine.drug_id.in_(med_ids))
+            .all()
+        )
+        print(user_meds_data)
 
-  return jsonify({ 'ok' : True, 'drugs' : result})
+        for routine, umed in user_meds_data:
+            
+            dayeat = routine.eattime.count(True)
+
+            result.append({
+                'id': routine.id,
+                'type': 'user_meds',
+                'drug_id': routine.drug_id,
+                'drugName': umed.med_title,
+                'method': f'1일 {dayeat}회',
+                'notice': '',
+                'effect': '',
+                'start_date': routine.start_date,
+                'end_date': routine.end_date,
+                'note': routine.note,
+                'eattime': routine.eattime
+            })
+
+    return jsonify({'ok': True, 'drugs': result})
+
   
 # 알약 히스토리 불러오기 달성률...
 @bp.get('/getDrugHistory/<int:user_id>')
