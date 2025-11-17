@@ -13,6 +13,13 @@ class OrderItem(db.Model):
   subtotal = db.Column(db.Integer , nullable = False)
   create_at = db.Column(db.DateTime, default = datetime.now, nullable=False)
 
+  def __init__(self, unit_price, count, subtotal, goods_id=None, orders_id=None):
+    self.goods_id=goods_id
+    self.orders_id=orders_id
+    self.unit_price=unit_price
+    self.count=count
+    self.subtotal=subtotal
+
   def to_dict(self):
     g = self.goods
     o = self.orders

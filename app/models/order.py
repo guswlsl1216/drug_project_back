@@ -23,8 +23,24 @@ class Order(db.Model):
   receiver = db.Column(db.String(50), nullable=False)
   phone = db.Column(db.String(20), nullable=False)
   payments = db.relationship('Payment', back_populates='orders', cascade='all, delete-orphan')
-  payment_at = db.Column(db.DateTime, nullable=True)
+  payment_at = db.Column(db.DateTime, default=datetime.now, nullable=True)
   update_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
+  order_code = db.Column(db.String(50), nullable=False, unique=True) 
+
+  def __init__(self, items_total, shipping_fee, used_points, final_amount, total_count, status, zipcode, address, address_detail, receiver,  phone, order_code, user_id=None):
+    self.items_total=items_total
+    self.shipping_fee=shipping_fee
+    self.used_points=used_points
+    self.final_amount=final_amount
+    self.total_count=total_count
+    self.status=status
+    self.zipcode=zipcode
+    self.address=address
+    self.address_detail=address_detail
+    self.receiver=receiver
+    self.phone=phone
+    self.order_code=order_code
+    self.user_id = user_id
 
   def to_dict(self):
     u = self.user
@@ -46,5 +62,6 @@ class Order(db.Model):
       'receiver' : self.receiver,
       'phone' : self.phone,
       'payment_at' : self.payment_at,
-      'update_at' : self.update_at
+      'update_at' : self.update_at,
+      'order_code' : self.order_code
     }

@@ -13,8 +13,6 @@ original_string = Config.WIDGET_SECRET_KEY + ":"
 encoded_key_string = base64.b64encode(original_string.encode("utf-8")).decode('utf-8')
 encryptedSecretKey = f"Basic {encoded_key_string}"
 
-# !!!주문 상태 계속 업데이트 해야 함!!!
-
 # orderId와 amount를 세션에 임시 저장 / 주문 정보 DB 저장
 @bp.post('/ready')
 @jwt_required()
@@ -52,13 +50,14 @@ def save_payment_data():
 
     try:
       items_total = sum(
-        int(item["unit_price"]) * int(item["count"])
+        int(item.get("unit_price")) * int(item.get("count"))
         for item in order_item_list
       )
-      total_count = sum(int(item["count"]) for item in order_item_list)
+      total_count = sum(int(item.get("count")) for item in order_item_list)
       shipping_fee = int(order_data.get("shipping_fee", 0))
       used_points= int(order_data.get("used_points", 0))
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError) as e:
+      print(f"Order data processing failed: {e}")
       return jsonify({"ok": False, "message": "잘못된 주문 데이터입니다."}), 400
 
     final_amount = items_total +  shipping_fee - used_points
@@ -164,14 +163,14 @@ def confirm_payment():
           return jsonify({'ok': False, 'message': 'DB에 해당 주문 정보가 없습니다.'}), 404
 
         toss_response = response.json()
-        paymentKey = toss_response.paymentKey
+        paymentKey = toss_response['paymentKey']
 
         payment = Payment(
-          order_id = order.id,
+          orders_id = order.id,
           user_id = user.id,
-          paymentKey = paymentKey,
+          # paymentKey = paymentKey,
           amount = toss_response['totalAmount'],
-          type = toss_response['type'],
+          # type = toss_response['type'],
           method = toss_response['method'],
           status = toss_response['status'],
           pg_tid = toss_response['lastTransactionKey'],
@@ -205,10 +204,12 @@ def confirm_payment():
           except Exception as commit_e:
             print(f"결제 취소 처리 실패: {commit_e}")
 
-          return jsonify({'ok':False, 'message':'결제 정보 DB 저장 중 오류가 발생했습니다.'}), 500
+          print(f'결제 정보 DB 저장 중 오류가 발생했습니다. : {e}')
+          return jsonify({'ok':False, 'message': '결제 정보 DB 저장 중 오류가 발생했습니다.'}), 500
       else:
         return jsonify({'ok': False, 'message': '결제 승인 API 호출에 실패했습니다.', 'details': response.json()}), response.status_code
     except requests.exceptions.RequestException as e:
       return jsonify({'ok': False, 'message': f'API 통신 에러가 발생했습니다.: {str(e)}'}), 500
   except Exception as e:
+    print(f'결제 승인 중 에러가 발생했습니다. : {e}')
     return jsonify({'ok':False, 'message':'결제 승인 중 에러가 발생했습니다.'}), 500
