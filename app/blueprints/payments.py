@@ -3,10 +3,10 @@ import base64, requests
 from app.config import Config
 from ..extensions import db
 from flask_jwt_extended import get_current_user, jwt_required
-from ..models.user import User
 from ..models.order import Order
 from ..models.orderitem import OrderItem
 from ..models.payment import Payment
+from ..models.goods import Goods
 
 bp = Blueprint('payments', __name__)
 original_string = Config.WIDGET_SECRET_KEY + ":"
@@ -39,7 +39,14 @@ def save_payment_data():
     if not order_item_list:
       return jsonify({"ok" : False, "message" : "주문 상품이 없습니다."}), 400
     
+    # 재고 파악
+    for item in order_item_list:
+      goods = db.session.query(Goods).filter_by(id=item['goods_id']).first()
+      if (not goods.is_active) or (goods.stock < item['count']):
+        return jsonify({'ok':False, 'message':'품절된 상품이 있습니다.'}), 400
+    
     user = get_current_user()
+    db.session.add(user)
     user_id = user.id
 
     # 데이터 검증
@@ -71,6 +78,10 @@ def save_payment_data():
     if used_points > 0:
       if not user or (user.point or 0) < used_points:
         return jsonify({"ok" : False, "message" : "보유 적립금이 부족합니다."}), 400
+    
+    saved_points = ( items_total - used_points ) * 0.01
+    if saved_points < 0:
+      saved_points = 0
 
     # 주문 테이블 저장
     order = Order(
@@ -78,6 +89,7 @@ def save_payment_data():
       items_total=items_total,      # 상품 총합
       shipping_fee=shipping_fee,
       used_points=used_points,
+      saved_points=saved_points,
       final_amount=final_amount,    # 최종 결제금액 (items_total + shipping - points)
       total_count=total_count,      # 총 수량
       status="PENDING",
@@ -111,8 +123,8 @@ def save_payment_data():
       user.zipcode=order_data.get("zipcode")
 
     # 유저 포인트 차감
-    if used_points > 0:
-      user.point = (user.point or 0) - used_points # type: ignore[operator]
+    # if used_points > 0:
+    #   user.point = (user.point or 0) - used_points # type: ignore[operator]
 
     db.session.commit()
     return jsonify({'ok':True, 'message':'결제 요청 정보 및 주문 정보가 저장되었습니다.'}), 200
@@ -125,7 +137,6 @@ def save_payment_data():
 @jwt_required()
 def confirm_payment():
   try:
-    # 1. 데이터 검증
     data = request.get_json()
     order_id = data.get('orderId')
     amount = data.get('amount')
@@ -134,20 +145,28 @@ def confirm_payment():
     if not order_id or not amount:
       return jsonify({'ok':False, 'message':'전송된 결제 정보가 올바르지 않습니다.'}), 400
 
-    if order_id != session.get('pre_payment_order_id') or amount != session.get('pre_payment_amount'):
-      return jsonify({'ok':False, 'message':'잘못된 결제 정보입니다.'}), 400
-
-    # 2. 테이블 검증
     user = get_current_user()
+    db.session.add(user)
+
     order = db.session.query(Order).filter_by(order_code=order_id).first()
     if not order:
       return jsonify({'ok': False, 'message': 'DB에 해당 주문 정보가 없습니다.'}), 404
     
     order_items = db.session.query(OrderItem).filter_by(orders_id=order.id).all()
+    serialized_items = [item.to_dict() for item in order_items]
 
     # 이미 승인된 건이면 건너뛰기
     if order.status in ("PAID"):
-      return jsonify({'ok':True, 'message':'이미 처리된 주문입니다.', 'order_items':order_items}), 200
+      return jsonify({
+        'ok':True,
+        'message':'이미 처리된 주문입니다.',
+        'order_items': serialized_items,
+        'final_amount': order.final_amount,
+        'order_code': order.order_code
+        }), 200
+
+    if order_id != session.get('pre_payment_order_id') or amount != session.get('pre_payment_amount'):
+      return jsonify({'ok':False, 'message':'잘못된 결제 정보입니다.'}), 400
     
     # 결제 승인
     toss_api_url = "https://api.tosspayments.com/v1/payments/confirm"
@@ -165,21 +184,26 @@ def confirm_payment():
       response = requests.post(toss_api_url, headers=headers, json=body)
 
       if response.status_code == 200:
-        session.pop('pre_payment_order_id', None)
-        session.pop('pre_payment_amount', None)
-
         # 결제 주문 정보 db 저장
         toss_response = response.json()
         paymentKey = toss_response['paymentKey']
+
+        # 간편결제만 한다고 가정
+        # 간편결제 외 다른 결제수단 선택 시 type에는 method 값이 들어감
+        method = toss_response['method']
+        easy_pay_info = toss_response.get('easyPay')
+        if easy_pay_info:
+            payment_type = easy_pay_info.get('provider') 
+        else:
+            payment_type = method
 
         payment = Payment(
           orders_id = order.id,
           user_id = user.id,
           paymentKey = paymentKey,
           amount = toss_response['totalAmount'],
-          # 간편결제로만 결제한다고 가정합니다!
-          type = toss_response['type'], # ['easyPay']['provider']
-          method = toss_response['method'],
+          type = payment_type,
+          method = method,
           status = toss_response['status'],
           pg_tid = toss_response['lastTransactionKey'],
           receipt_url = toss_response['receipt']['url'],
@@ -189,12 +213,31 @@ def confirm_payment():
         order.status = "PAID"
         db.session.add(payment)
 
-        # 물건 재고 그만큼 줄어들기
-        # user 테이블 포이니트 상품
+        # 결제 완료 시 goods 테이블 수정
+        for item in order_items:
+          goods = db.session.query(Goods).filter_by(id=item.goods_id).with_for_update().first()
+          goods.sell_count += item.count
+          updated_stock = goods.stock - item.count
+          if updated_stock <= 0:
+            goods.stock = 0
+            goods.is_active = False
+          else:
+            goods.stock = updated_stock
+
+        # 결제 완료 시 포인트 차감 및 적립
+        user.point = user.point - order.used_points + order.saved_points
+        if user.point < 0:
+          user.point = 0
 
         try:
           db.session.commit()
-          return jsonify({'ok':True, 'message':'결제 승인이 완료되었습니다.', 'order_items': order_items}), 200
+          return jsonify({
+              'ok':True,
+              'message':'결제 승인이 완료되었습니다.',
+              'order_items': serialized_items,
+              'final_amount': order.final_amount,
+              'order_code': order.order_code
+            }), 200
         except Exception as e:
           db.session.rollback()
           # 결제 취소
@@ -212,6 +255,8 @@ def confirm_payment():
           try:
             order.status = "CANCELLED"
             db.session.commit()
+            session.pop('pre_payment_order_id', None)
+            session.pop('pre_payment_amount', None)
           except Exception as commit_e:
             print(f"결제 취소 처리 실패: {commit_e}")
 
