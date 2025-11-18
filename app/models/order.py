@@ -66,5 +66,17 @@ class Order(db.Model):
       'phone' : self.phone,
       'payment_at' : self.payment_at,
       'update_at' : self.update_at,
-      'order_code' : self.order_code
+      'order_code' : self.order_code,
+      'items': [
+        {
+          'id': item.id,
+          'goods_id': item.goods_id,
+          'goods_name': getattr(item.goods, 'goods_name', None),
+          'image': getattr(item.goods, 'image_path', None),
+          'unit_price': item.unit_price,
+          'count': item.count,
+          'subtotal': item.subtotal,
+        }
+        for item in self.orderitems # type: ignore[attr-defined]
+      ]
     }

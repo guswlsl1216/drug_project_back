@@ -4,9 +4,13 @@ from flask_jwt_extended import jwt_required
 from ..models.order import Order
 from ..models.orderitem import OrderItem
 from ..models.user import User
+from ..models.payment import Payment
 from ..utils.auth_user import get_current_user
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from ..models.goods import Goods
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 bp = Blueprint('orders', __name__)
 
@@ -63,7 +67,8 @@ def save_address():
 def orders_list():
   page = request.args.get('page', type=int, default=1)
   per_page = request.args.get("per_page", 10, type=int)
-  range_type = request.args.get("range") # 1m / 3m / 6m / 2025
+  range_type = request.args.get("range") # 1m / 3m / 6m / all
+  keyword = request.args.get("keyword", "").strip()
 
   now = datetime.now()
   start_dt = None
@@ -86,13 +91,27 @@ def orders_list():
     end_dt = now
 
   user_id = int(get_current_user())
-  orders_q = db.session.query(Order).filter(Order.user_id == user_id)
+  orders_q = ( 
+    db.session.query(Order)
+    .options(joinedload(Order.orderitems).joinedload(OrderItem.goods)) # 상품명 검색 위해 joinload 
+    .filter(Order.user_id == user_id)
+  )
 
   if start_dt:
     orders_q = orders_q.filter(Order.payment_at >= start_dt)
   
   if end_dt:
     orders_q = orders_q.filter(Order.payment_at <= end_dt)
+
+  if keyword:
+    orders_q = orders_q.filter( 
+      or_(
+        Order.order_code.ilike(f"%{keyword}%"),        # 주문번호 검색 
+        Order.orderitems.any(                         # OrderItem → Goods
+          OrderItem.goods.has(Goods.goods_name.ilike(f"%{keyword}%"))
+        )
+      )
+    )
 
   orders_q = orders_q.order_by(Order.payment_at.desc())
   pagination = orders_q.paginate(page=page, per_page=per_page, error_out=False) # type: ignore[attr-defined]
@@ -116,7 +135,29 @@ def order_detail(id):
   if not order:
     return jsonify({"ok": False, "message": "주문내역을 찾을 수 없습니다."}), 404
   
+  payment = (
+    db.session.query(Payment)
+    .filter_by(orders_id=id, user_id=user_id)
+    .order_by(Payment.created_at.desc())
+    .first()
+  )
+
+  data = order.to_dict()
+
+  if payment:
+    data["payment"] = {
+      "id": payment.id,
+      "method": payment.method,   # 카드 / 가상계좌 / 간편결제 ...
+      "type": payment.type,       # NORMAL / BILLING / BRANDPAY
+      "status": payment.status,   # READY / DONE / CANCELED ...
+      "amount": payment.amount,
+      "paid_at": payment.paid_at,
+      "receipt_url": payment.receipt_url,
+    }
+  else:
+    data["payment"] = None
+  
   return jsonify({
     "ok" : True,
-    "order" : order.to_dict()
+    "order" : data
   }), 200
