@@ -7,6 +7,9 @@ from ..models.user import User
 from ..utils.auth_user import get_current_user
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from ..models.goods import Goods
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 bp = Blueprint('orders', __name__)
 
@@ -63,7 +66,8 @@ def save_address():
 def orders_list():
   page = request.args.get('page', type=int, default=1)
   per_page = request.args.get("per_page", 10, type=int)
-  range_type = request.args.get("range") # 1m / 3m / 6m / 2025
+  range_type = request.args.get("range") # 1m / 3m / 6m / all
+  keyword = request.args.get("keyword", "").strip()
 
   now = datetime.now()
   start_dt = None
@@ -86,13 +90,27 @@ def orders_list():
     end_dt = now
 
   user_id = int(get_current_user())
-  orders_q = db.session.query(Order).filter(Order.user_id == user_id)
+  orders_q = ( 
+    db.session.query(Order)
+    .options(joinedload(Order.orderitems).joinedload(OrderItem.goods)) # 상품명 검색 위해 joinload 
+    .filter(Order.user_id == user_id)
+  )
 
   if start_dt:
     orders_q = orders_q.filter(Order.payment_at >= start_dt)
   
   if end_dt:
     orders_q = orders_q.filter(Order.payment_at <= end_dt)
+
+  if keyword:
+    orders_q = orders_q.filter( 
+      or_(
+        Order.order_code.ilike(f"%{keyword}%"),        # 주문번호 검색 
+        Order.orderitems.any(                         # OrderItem → Goods
+          OrderItem.goods.has(Goods.goods_name.ilike(f"%{keyword}%"))
+        )
+      )
+    )
 
   orders_q = orders_q.order_by(Order.payment_at.desc())
   pagination = orders_q.paginate(page=page, per_page=per_page, error_out=False) # type: ignore[attr-defined]
