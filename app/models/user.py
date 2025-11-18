@@ -3,6 +3,7 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..extensions import db
 from enum import Enum
+from .qna import QnA
 
 class RoleEnum(str, Enum):
   ADMIN = 'admin'
@@ -31,8 +32,8 @@ class User(db.Model, UserMixin):
   carts = db.relationship('Cart', back_populates='user', cascade='all, delete-orphan')
   favorites = db.relationship('Favorite', back_populates='user', cascade='all, delete-orphan')
   inquiries = db.relationship('Inquiry', back_populates='user', cascade='all, delete-orphan')
-  qnas = db.relationship('QnA', back_populates='user', cascade='all, delete-orphan', foreign_keys='[QnA.user_id]')
-  qna_answers = db.relationship('QnA', backref='admin', foreign_keys='[QnA.admin_id]')
+  qnas = db.relationship('QnA', back_populates='user', foreign_keys=[QnA.user_id], cascade='all, delete-orphan')
+  qna_answers = db.relationship('QnA', back_populates='admin', foreign_keys=[QnA.admin_id])
 
   def set_password(self, password): # 암호화
     self.password_hash = generate_password_hash(password)

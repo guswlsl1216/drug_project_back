@@ -15,7 +15,7 @@ class QnA(db.Model):
   created_at = db.Column(db.DateTime, default=datetime.now)
 
 # 답변 필드(관리자)
-  admin_id = db.Column(db.Integer, db.ForeignKey('users.id', nullable=True)) # 관리자 ID
+  admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # 관리자 ID
   answer_content = db.Column(db.Text, nullable=True) # 답변은 없을 수도 있음
   answered_at = db.Column(db.DateTime, nullable=True)
 
@@ -25,9 +25,9 @@ class QnA(db.Model):
   status = db.Column(db.String(20), default='pending') # 처리 상태(pending, answered)
 
 # 관계 설정
-  user = db.relationship('User', backref='qna_questions') # 질문 작성자
-  goods = db.relationship('Goods', backref='qna_list') # 소속 상품
-  admin = db.relationship('User', foreign_keys=[admin_id], remote_backref='qna_answers')
+  user = db.relationship('User', back_populates='qnas', foreign_keys=[user_id]) # 질문 작성자
+  goods = db.relationship('Goods', back_populates='qnas') # 소속 상품
+  admin = db.relationship('User', foreign_keys=[admin_id], back_populates='qna_answers')
 
   def __repr__(self):
     return f'<QnA {self.id}: {self.question_title}>'
