@@ -95,24 +95,34 @@ def update_goods(cart_id):
 def post_goods(goods_id):
   user = current_user
   
-  goods = Cart.query.filter_by(user_id=user.id, goods_id=goods_id).first()
+  cart = Cart.query.filter_by(user_id=user.id, goods_id=goods_id).first()
+  data = request.get_json()
+  new_count = data['count']
   
-  if goods is None : 
-
-    goods = Cart(user_id=user.id, goods_id=goods_id, count=1)
-    db.session.add(goods)
+  if cart is None : # 담긴게 없어서 새로 추가 할 때 setQuantity(수량)을 받아서 넣어줘야 함
+    cart = Cart(user_id=user.id, goods_id=goods_id, count=new_count)
+    db.session.add(cart)
     db.session.commit()
 
-  else :
-   
-    goods.count += 1
+    # 장바구니에 있는 count와 setQuantity의 수량이 stock(재고)를 넘으면 안 담기게 하거나 맞는 개수만 들어가게
+
+  else : # 담긴 게 있다면 위의 주석대로 ㄱ
+    stock = cart.goods.stock
+    add_count = cart.count+new_count
     
-    db.session.commit()
-  
+    if add_count > stock :
+      cart.count = min(add_count, stock) # 재고 제한
+      message = f"재고가 부족하여 {stock}개 까지만 담을 수 있습니다."
+    else:
+      cart.count = add_count
+
+  db.session.commit()
+
   result = {
-    'id':goods.id,
-    'count':goods.count,
-    'goods_id':goods.goods_id
+    'id':cart.id,
+    'count':cart.count,
+    'goods_id':cart.goods_id,
+    'message':message
   }
 
   return jsonify(result)
