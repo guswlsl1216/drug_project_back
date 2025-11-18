@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required
 from ..models.order import Order
 from ..models.orderitem import OrderItem
 from ..models.user import User
+from ..models.payment import Payment
 from ..utils.auth_user import get_current_user
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -134,7 +135,29 @@ def order_detail(id):
   if not order:
     return jsonify({"ok": False, "message": "주문내역을 찾을 수 없습니다."}), 404
   
+  payment = (
+    db.session.query(Payment)
+    .filter_by(orders_id=id, user_id=user_id)
+    .order_by(Payment.created_at.desc())
+    .first()
+  )
+
+  data = order.to_dict()
+
+  if payment:
+    data["payment"] = {
+      "id": payment.id,
+      "method": payment.method,   # 카드 / 가상계좌 / 간편결제 ...
+      "type": payment.type,       # NORMAL / BILLING / BRANDPAY
+      "status": payment.status,   # READY / DONE / CANCELED ...
+      "amount": payment.amount,
+      "paid_at": payment.paid_at,
+      "receipt_url": payment.receipt_url,
+    }
+  else:
+    data["payment"] = None
+  
   return jsonify({
     "ok" : True,
-    "order" : order.to_dict()
+    "order" : data
   }), 200

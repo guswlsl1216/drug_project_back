@@ -260,15 +260,24 @@ def delete_goods(id):
                 .scalar())
   
   try:
-    if order_count > 0:
-      goods.is_active = False
-      Cart.query.filter_by(goods_id=id).delete(synchronize_session=False)
-      db.session.commit()
-      return jsonify({'ok' : True, 'message' : '주문 이력이 있어 판매 중지 처리했습니다.'}), 200
-    else:
+      # 재고 0 → 판매중지 처리
+      if goods.stock <= 0:
+        goods.is_active = False
+        Cart.query.filter_by(goods_id=id).delete(synchronize_session=False)
+        db.session.commit()
+        return jsonify({'ok': True, 'message': '재고가 없어서 판매 중지 처리했습니다.'}), 200
+        
+      #  주문 이력 → 삭제 불가 → 판매중지
+      if order_count > 0:
+        goods.is_active = False
+        Cart.query.filter_by(goods_id=id).delete(synchronize_session=False)
+        db.session.commit()
+        return jsonify({'ok': True, 'message': '주문 이력이 있어 판매 중지 처리했습니다.'}), 200
+        
+      # 주문 이력 없고 재고도 정상 → 완전 삭제
       db.session.delete(goods)
       db.session.commit()
-      return jsonify({'ok' : True, 'message' : '상품 삭제 완료'}), 200
+      return jsonify({'ok': True, 'message': '상품 삭제 완료'}), 200
   except Exception:
     db.session.rollback()
     return jsonify({'ok' : False, 'message' : '상품 삭제 처리에 실패했습니다.'}), 500
@@ -343,9 +352,18 @@ def payments_list():
       payment_q = payment_q.filter(User.nickname.like(f"%{query}%"))
 
   pagination = payment_q.paginate(page=page, per_page=per_page)
-  approved_sum = db.session.query(func.coalesce(func.sum(Payment.amount), 0)).filter(Payment.status == "APPROVED").scalar()
-  cancelled_sum = db.session.query(func.coalesce(func.sum(Payment.amount), 0)).filter(Payment.status == "CANCELLED").scalar()
-  refunded_sum = db.session.query(func.coalesce(func.sum(Payment.amount), 0)).filter(Payment.status == "REFUNDED").scalar()
+  approved_sum = (
+    db.session.query(func.coalesce(func.sum(Payment.amount), 0))
+    .filter(Payment.status == "DONE")
+    .scalar()
+  )
+  cancelled_sum = (
+    db.session.query(func.coalesce(func.sum(Payment.amount), 0))
+    .filter(Payment.status.in_(["CANCELED", "PARTIAL_CANCELED"]))
+    .scalar()
+  )
+  
+  refunded_sum = cancelled_sum
 
   return jsonify({
     "ok" : True,
