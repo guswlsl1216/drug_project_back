@@ -125,6 +125,7 @@ def save_payment_data():
 @jwt_required()
 def confirm_payment():
   try:
+    # 1. 데이터 검증
     data = request.get_json()
     order_id = data.get('orderId')
     amount = data.get('amount')
@@ -133,9 +134,20 @@ def confirm_payment():
     if not order_id or not amount:
       return jsonify({'ok':False, 'message':'전송된 결제 정보가 올바르지 않습니다.'}), 400
 
-    # 결제 정보 검증
     if order_id != session.get('pre_payment_order_id') or amount != session.get('pre_payment_amount'):
       return jsonify({'ok':False, 'message':'잘못된 결제 정보입니다.'}), 400
+
+    # 2. 테이블 검증
+    user = get_current_user()
+    order = db.session.query(Order).filter_by(order_code=order_id).first()
+    if not order:
+      return jsonify({'ok': False, 'message': 'DB에 해당 주문 정보가 없습니다.'}), 404
+    
+    order_items = db.session.query(OrderItem).filter_by(orders_id=order.id).all()
+
+    # 이미 승인된 건이면 건너뛰기
+    if order.status in ("PAID"):
+      return jsonify({'ok':True, 'message':'이미 처리된 주문입니다.', 'order_items':order_items}), 200
     
     # 결제 승인
     toss_api_url = "https://api.tosspayments.com/v1/payments/confirm"
@@ -157,11 +169,6 @@ def confirm_payment():
         session.pop('pre_payment_amount', None)
 
         # 결제 주문 정보 db 저장
-        user = get_current_user()
-        order = db.session.query(Order).filter_by(order_code=order_id).first()
-        if not order:
-          return jsonify({'ok': False, 'message': 'DB에 해당 주문 정보가 없습니다.'}), 404
-
         toss_response = response.json()
         paymentKey = toss_response['paymentKey']
 
@@ -170,7 +177,8 @@ def confirm_payment():
           user_id = user.id,
           paymentKey = paymentKey,
           amount = toss_response['totalAmount'],
-          type = toss_response['type'],
+          # 간편결제로만 결제한다고 가정합니다!
+          type = toss_response['type'], # ['easyPay']['provider']
           method = toss_response['method'],
           status = toss_response['status'],
           pg_tid = toss_response['lastTransactionKey'],
@@ -181,9 +189,12 @@ def confirm_payment():
         order.status = "PAID"
         db.session.add(payment)
 
+        # 물건 재고 그만큼 줄어들기
+        # user 테이블 포이니트 상품
+
         try:
           db.session.commit()
-          return jsonify({'ok':True, 'toss_response': toss_response}), 200
+          return jsonify({'ok':True, 'message':'결제 승인이 완료되었습니다.', 'order_items': order_items}), 200
         except Exception as e:
           db.session.rollback()
           # 결제 취소
