@@ -46,6 +46,8 @@ def create_app():
   from .blueprints.admin import bp as admin_bp
   from .blueprints.review import bp as review_bp
   from .blueprints.order import bp as order_bp
+  from .blueprints.inquiry import bp as inquiry_bp
+  from .blueprints.qna import bp as qna_bp
 
   
 
@@ -63,5 +65,7 @@ def create_app():
   app.register_blueprint(admin_bp, url_prefix='/admin')
   app.register_blueprint(review_bp, url_prefix='/review')
   app.register_blueprint(order_bp, url_prefix='/orders')
+  app.register_blueprint(inquiry_bp, url_prefix='/inquiry')
+  app.register_blueprint(qna_bp, url_prefix='/qna')
 
   return app

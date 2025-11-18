@@ -30,6 +30,9 @@ class User(db.Model, UserMixin):
   reviews = db.relationship('Review', back_populates='user', cascade='all, delete-orphan')
   carts = db.relationship('Cart', back_populates='user', cascade='all, delete-orphan')
   favorites = db.relationship('Favorite', back_populates='user', cascade='all, delete-orphan')
+  inquiries = db.relationship('Inquiry', back_populates='user', cascade='all, delete-orphan')
+  qnas = db.relationship('QnA', back_populates='user', cascade='all, delete-orphan', foreign_keys='[QnA.user_id]')
+  qna_answers = db.relationship('QnA', backref='admin', foreign_keys='[QnA.admin_id]')
 
   def set_password(self, password): # 암호화
     self.password_hash = generate_password_hash(password)

@@ -23,6 +23,7 @@ class Goods(db.Model):
   carts = db.relationship('Cart', back_populates='goods', cascade='all, delete-orphan')
   favorites = db.relationship('Favorite', back_populates='goods', cascade='all, delete-orphan')
   supps_id = db.Column(db.Integer, nullable=True)
+  qnas = db.relationship('QnA', back_populates='goods', cascade='all, delete-orphan')
 
   def __init__(self, category, classify, goods_name, goods_desc, price, stock,image_path=None, is_active=True, user_id=None):
     self.category = category
