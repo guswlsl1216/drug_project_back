@@ -304,6 +304,40 @@ def get_soldout_goods():
     "per_page": per_page
   }), 200
 
+# 품절 상품 재고 수정
+@bp.put("/goods/<int:id>/stock")
+def soldout_goods_edit(id):
+  data = request.get_json()
+  stock = data.get("stock")
+
+  if stock is None:
+    return jsonify({"ok": False, "message": "stock 값이 필요합니다."}), 400
+  
+  try:
+    stock = int(stock)
+  except ValueError:
+    return jsonify({"ok": False, "message": "stock 값은 숫자만 가능합니다."}), 400
+
+  goods = Goods.query.get(id)
+
+  if not goods:
+    return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
+
+  goods.stock = stock
+
+  if stock > 0:
+    goods.is_active = True
+  else:
+      goods.is_active = False
+
+  try:
+    db.session.commit()
+  except Exception:
+    db.session.rollback()
+    return jsonify({'ok' : False, 'message' : '재고 수정 실패.'}), 500
+  
+  return jsonify({"ok" : True, "message": "재고가 수정되었습니다.", "stock": stock}), 200
+
 # 상품 리스트
 @bp.get('/goods')
 def board_list():
