@@ -28,7 +28,10 @@ class Payment(db.Model):
       'orders_id': self.orders_id,
       'orders': {
         'status': getattr(order, 'status', None),
-        'total_price': getattr(order, 'total_price', None),
+        'items_total': getattr(order, 'items_total', None),
+        'shipping_fee': getattr(order, 'shipping_fee', None),
+        'used_points': getattr(order, 'used_points', None),
+        'final_amount': getattr(order, 'final_amount', None),
         'total_count': getattr(order, 'total_count', None),
         'receiver': getattr(order, 'receiver', None),
         'address': getattr(order, 'address', None),
