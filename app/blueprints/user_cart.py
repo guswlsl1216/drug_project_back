@@ -94,10 +94,10 @@ def update_goods(cart_id):
 @jwt_required()
 def post_goods(goods_id):
   user = current_user
-  
+  message = ""
   cart = Cart.query.filter_by(user_id=user.id, goods_id=goods_id).first()
   data = request.get_json()
-  new_count = data['count']
+  new_count = data['count'] # 상품 담을 수량
   
   if cart is None : # 담긴게 없어서 새로 추가 할 때 setQuantity(수량)을 받아서 넣어줘야 함
     cart = Cart(user_id=user.id, goods_id=goods_id, count=new_count)
@@ -107,8 +107,8 @@ def post_goods(goods_id):
     # 장바구니에 있는 count와 setQuantity의 수량이 stock(재고)를 넘으면 안 담기게 하거나 맞는 개수만 들어가게
 
   else : # 담긴 게 있다면 위의 주석대로 ㄱ
-    stock = cart.goods.stock
-    add_count = cart.count+new_count
+    stock = cart.goods.stock # 재고
+    add_count = cart.count+new_count # 장바구니개수+상품 담을 수량(총 담을 개수)
     
     if add_count > stock :
       cart.count = min(add_count, stock) # 재고 제한
