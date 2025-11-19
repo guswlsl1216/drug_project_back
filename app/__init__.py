@@ -45,15 +45,12 @@ def create_app():
   from .blueprints.aiAnalyze import bp as aiAnalyze_bp
   from .blueprints.admin import bp as admin_bp
   from .blueprints.review import bp as review_bp
-<<<<<<< HEAD
   from .blueprints.user_cart import bp as cart_bp
-=======
   from .blueprints.payments import bp as payments_bp
   from .blueprints.order import bp as order_bp
   from .blueprints.inquiry import bp as inquiry_bp
   from .blueprints.qna import bp as qna_bp
 
->>>>>>> develop
   
 
 
@@ -69,13 +66,10 @@ def create_app():
   app.register_blueprint(aiAnalyze_bp, url_prefix='/aiAnalyze')
   app.register_blueprint(admin_bp, url_prefix='/admin')
   app.register_blueprint(review_bp, url_prefix='/review')
-<<<<<<< HEAD
   app.register_blueprint(cart_bp, url_prefix='/cart')
-=======
   app.register_blueprint(payments_bp, url_prefix='/payments')
   app.register_blueprint(order_bp, url_prefix='/orders')
   app.register_blueprint(inquiry_bp, url_prefix='/inquiry')
   app.register_blueprint(qna_bp, url_prefix='/qna')
->>>>>>> develop
 
   return app
