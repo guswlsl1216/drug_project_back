@@ -11,23 +11,32 @@ class OrderItem(db.Model):
   unit_price = db.Column(db.Integer , nullable = False)
   count = db.Column(db.Integer , nullable = False)
   subtotal = db.Column(db.Integer , nullable = False)
-  create_at = db.Column(db.DateTime, default = datetime.now)
+  create_at = db.Column(db.DateTime, default = datetime.now, nullable=False)
+
+  def __init__(self, unit_price, count, subtotal, goods_id=None, orders_id=None):
+    self.goods_id=goods_id
+    self.orders_id=orders_id
+    self.unit_price=unit_price
+    self.count=count
+    self.subtotal=subtotal
 
   def to_dict(self):
+    g = self.goods
+    o = self.orders
     return {
       'id' : self.id,
       'goods' : {
         'id' : self.goods_id,
-        'name': self.goods.goods_name,
-        'image': self.goods.image_path,
+        'name': getattr(g, 'goods_name', None),
+        'image': getattr(g, 'image_path', None),
         'price': self.unit_price,  # 주문 당시 가격
       },
       'orders' : {
         'id' : self.orders_id,
-        'status': self.orders.status,
-        'receiver': self.orders.receiver,
-        'address': self.orders.address,
-        'address_detail': self.orders.address_detail
+        'status': getattr(o, 'status', None),
+        'receiver': getattr(o, 'receiver', None),
+        'address': getattr(o, 'address', None),
+        'address_detail': getattr(o, 'address_detail', None),
       },
       'count' : self.count,
       'subtotal' : self.subtotal,
