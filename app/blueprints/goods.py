@@ -96,10 +96,15 @@ def get_goods_list():
 
 # 상품 상세 정보 조회
 @bp.get('/<int:goodsId>')
-@jwt_required(optional=True)
 def get_goods_detail(goodsId):
   try:
-    user_id = get_jwt_identity()
+    user_id = None
+
+    try: # 토큰이 유효하면 사용자 ID를 가져옴(로그인 상태)
+      verify_jwt_in_request(optional=True)
+      user_id = get_jwt_identity()
+    except Exception:
+      user_id = None
 
     # 상품ID로 조회 및 판매 활성화된 상품만 필터링
     product = Goods.query.filter_by(id=goodsId, is_active=True).first()

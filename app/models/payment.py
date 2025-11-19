@@ -2,9 +2,6 @@ from ..extensions import db
 from datetime import datetime
 from sqlalchemy import Enum
 
-status_enum = Enum('REQUESTED','APPROVED','CANCELLED','REFUNDED', name='payment_status')
-method_enum = Enum('KAKAOPAY','TOSS', name='payment_method')
-
 class Payment(db.Model):
   __tablename__ = 'payments'
   id = db.Column(db.Integer, primary_key=True)
@@ -12,9 +9,11 @@ class Payment(db.Model):
   orders = db.relationship('Order', back_populates='payments')
   user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
   user = db.relationship('User', backref=db.backref('payments'))
+  paymentKey = db.Column(db.String(255), nullable=False)
   amount = db.Column(db.Integer, nullable = False)
-  method = db.Column(method_enum, nullable=False)
-  status = db.Column(status_enum, nullable=False)
+  type = db.Column(db.String(50), nullable=False)
+  method = db.Column(db.String(50), nullable=False)
+  status = db.Column(db.String(50), nullable=False)
   pg_tid = db.Column(db.String(128), nullable=False)
   receipt_url = db.Column(db.String(512), nullable=True)
   paid_at = db.Column(db.DateTime, nullable=True)
@@ -29,7 +28,10 @@ class Payment(db.Model):
       'orders_id': self.orders_id,
       'orders': {
         'status': getattr(order, 'status', None),
-        'total_price': getattr(order, 'total_price', None),
+        'items_total': getattr(order, 'items_total', None),
+        'shipping_fee': getattr(order, 'shipping_fee', None),
+        'used_points': getattr(order, 'used_points', None),
+        'final_amount': getattr(order, 'final_amount', None),
         'total_count': getattr(order, 'total_count', None),
         'receiver': getattr(order, 'receiver', None),
         'address': getattr(order, 'address', None),
@@ -40,7 +42,9 @@ class Payment(db.Model):
       } if order else None,
       'user_id' : self.user_id,
       'user_nickname': getattr(self.user, 'nickname', None),
+      # 'paymentKey' : self.paymentKey,
       'amount' : self.amount,
+      # 'type' : self.type,
       'method' : self.method,
       'status' : self.status,
       'pg_tid' : self.pg_tid,
