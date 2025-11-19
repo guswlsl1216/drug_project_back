@@ -8,8 +8,10 @@ from ..models.cart import Cart
 from ..models.payment import Payment
 from ..models.order import Order
 from ..models.user import User
+from ..models.qna import QnA
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
+from datetime import datetime
 
 bp = Blueprint('admin', __name__)
 
@@ -58,7 +60,11 @@ def write_goods():
   goods_desc = sanitize_html(goods_desc)
 
   user_id = get_current_user()
-  
+  user = db.session.query(User).get(user_id)
+
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 상품 등록할수있습니다."}), 403
+
   goods = Goods(
     category=category,
     classify=classify,
@@ -121,6 +127,12 @@ def image_upload():
   ext = (ext or ".jpg").lower()
   filename = f"{uuid.uuid4().hex}{ext}"
   save_path = os.path.join(upload_dir, filename)
+
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 상품 등록할수있습니다."}), 403
 
   # (선택) 이미지 유효성 검증
   if PIL_AVAILABLE:
@@ -204,11 +216,16 @@ def edit_goods(id):
   goods = db.session.query(Goods).get(id)
 
   user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 수정할 수 있습니다."}), 403
+
 
   try:
     user_id = int(user_id)
   except Exception:
-      user_id = None
+    user_id = None
 
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
@@ -242,11 +259,15 @@ def delete_goods(id):
   goods = db.session.query(Goods).get(id)
 
   user_id = get_current_user()
-  
+  user = db.session.query(User).get(user_id)
+
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 삭제할 수 있습니다."}), 403
+
   try:
     user_id = int(user_id)
   except Exception:
-      user_id = None
+    user_id = None
 
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
@@ -284,7 +305,13 @@ def delete_goods(id):
   
 # 품절 상품
 @bp.get("/goods/soldout")
+@jwt_required()
 def get_soldout_goods():
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 조회할 수 있습니다."}), 403
+  
   page = request.args.get("page", type=int, default=1)
   per_page = 10
 
@@ -306,6 +333,7 @@ def get_soldout_goods():
 
 # 품절 상품 재고 수정
 @bp.put("/goods/<int:id>/stock")
+@jwt_required()
 def soldout_goods_edit(id):
   data = request.get_json()
   stock = data.get("stock")
@@ -319,6 +347,10 @@ def soldout_goods_edit(id):
     return jsonify({"ok": False, "message": "stock 값은 숫자만 가능합니다."}), 400
 
   goods = Goods.query.get(id)
+
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id) 
+  if not user or user.role != "admin": return jsonify({"ok": False, "message": "관리자만 재고 수정할 수 있습니다."}), 403
 
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
@@ -340,7 +372,13 @@ def soldout_goods_edit(id):
 
 # 상품 리스트
 @bp.get('/goods')
+@jwt_required()
 def board_list():
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 조회할 수 있습니다."}), 403
+
   page = request.args.get('page', type=int, default=1)
   per_page = request.args.get("per_page", 10, type=int)
   goods_q = Goods.query.order_by(Goods.create_at.desc())
@@ -357,7 +395,13 @@ def board_list():
   }), 200
   
 @bp.get('/payments')
+@jwt_required()
 def payments_list():
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 조회할 수 있습니다."}), 403
+
   page = request.args.get('page', type=int, default=1)
   per_page = request.args.get("per_page", 10, type=int)
 
@@ -412,7 +456,13 @@ def payments_list():
   }), 200
 
 @bp.get('/orders/<int:orders_id>')
+@jwt_required()
 def orderDetali(orders_id):
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 조회할 수 있습니다."}), 403
+  
   order = db.session.query(Order).get(orders_id)
 
   if not order:
@@ -439,3 +489,81 @@ def orderDetali(orders_id):
   } for it in items]
   
   return jsonify({'ok' : True, 'order' : data}), 200
+
+
+@bp.get('/inquiry')
+@jwt_required()
+def inquiry_list():
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 조회할 수 있습니다."}), 403
+  
+  page = request.args.get('page', type=int, default=1)
+  per_page = request.args.get("per_page", 10, type=int)
+
+  status = request.args.get("status")
+  query = request.args.get("query")
+
+  qna_q = QnA.query.join(User, QnA.user_id == User.id).order_by(QnA.created_at.desc())
+
+  # 문의 상태 필터 (pending / answered 등)
+  if status:
+    qna_q = qna_q.filter(QnA.status == status)
+  
+
+  # 검색어 (상품번호 OR 문의자명)
+  if query:
+    # .isdigit() : 모든 문자가 숫자이면 True, 하나라도 숫자가 아닌 문자가 포함되어 있으면 False를 반환
+    if query.isdigit():
+      # 숫자 → 상품 ID 검색
+      qna_q = qna_q.filter(QnA.goods_id == int(query))
+    else:
+      # 문자열 → 유저 닉네임 검색
+      qna_q = qna_q.filter(User.nickname.like(f"%{query}%"))
+
+  pagination = qna_q.paginate(page=page, per_page=per_page)
+
+  return jsonify({
+    'ok' : True,
+    'qna': [q.to_dict() for q in pagination.items],
+    'total' : pagination.total,
+    'page' : pagination.page,
+    'pages' : pagination.pages,
+    'per_page': per_page
+  }), 200
+
+@bp.post('/inquiry/<int:id>')
+@jwt_required()
+def answer_inquiry(id):
+  data = request.get_json()
+  answer = data.get("answer")
+
+  if not answer:
+    return jsonify({"ok" : False, "message" : "답변 내용을 입력해주세요."}), 400
+
+  qna = db.session.query(QnA).get(id)
+  if not qna:
+    return jsonify({"ok":False, "message" : "문의 내역을 찾을 수 없습니다."}), 404
+  
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 답변할 수 있습니다."}), 403
+  
+  qna.admin_id = user_id
+  qna.answer_content = answer
+  qna.status = "answered"
+  qna.answered_at = datetime.now()
+
+  try:
+    db.session.commit()
+  except Exception:
+    db.session.rollback()
+    return jsonify({'ok' : False, 'message' : '답변 등록 실패.'}), 500
+
+  return jsonify({
+    "ok" : True,
+    "message" : "답변이 등록되었습니다."
+  }), 200

@@ -31,3 +31,27 @@ class QnA(db.Model):
 
   def __repr__(self):
     return f'<QnA {self.id}: {self.question_title}>'
+  
+  def to_dict(self):
+    return {
+      "id": self.id,
+      "user": {
+        "id": self.user_id,
+        "nickname": self.user.nickname
+      },
+      "goods" : {
+        "id": self.goods_id,
+        "name": self.goods.goods_name,
+        "image": self.goods.image_path
+      },
+      "question_title" : self.question_title,
+      "question_content" : self.question_content,
+      "created_at" : self.created_at,
+      "admin_id" : self.admin_id,
+      "answer_content" : self.answer_content,
+      "answered_at" : self.answered_at,
+      "is_private" : self.is_private,
+      "visibility_label": "비밀글" if self.is_private else "전체공개",  # ← 라벨은 별도
+      "status" : self.status,
+      "status_label": "답변대기" if self.status == "pending" else "답변완료",
+    }
