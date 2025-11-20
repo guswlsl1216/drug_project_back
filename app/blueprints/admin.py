@@ -14,6 +14,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 from ..utils.decorators import admin_required
+from ..utils.email import send_inquiry_answer_email
 
 bp = Blueprint('admin', __name__)
 
@@ -503,7 +504,7 @@ def qna_list():
 @bp.post('/qna/<int:id>')
 @jwt_required()
 @admin_required
-def answer_inquiry(id):
+def answer_qna(id):
   data = request.get_json()
   answer = data.get("answer")
 
@@ -514,9 +515,9 @@ def answer_inquiry(id):
   if not qna:
     return jsonify({"ok":False, "message" : "문의 내역을 찾을 수 없습니다."}), 404
   
-  user_id = get_current_user()
+  admin_id = get_current_user()
   
-  qna.admin_id = user_id
+  qna.admin_id = admin_id
   qna.answer_content = answer
   qna.status = "answered"
   qna.answered_at = datetime.now()
@@ -565,3 +566,38 @@ def inquiry_list():
     'pages' : pagination.pages,
     'per_page': per_page
   }), 200
+
+@bp.post('/inquiry/<int:id>')
+@jwt_required()
+@admin_required
+def answer_inquiry(id):
+  data = request.get_json()
+  answer = data.get("answer")
+
+  if not answer:
+    return jsonify({"ok" : False, "message" : "답변 내용을 입력해주세요."}), 400
+  
+  inquiry = Inquiry.query.get(id)
+  if not inquiry:
+    return jsonify({"ok" : False, "message" : "문의 내역을 찾을 수 없습니다."}), 404
+  
+  admin_id = get_current_user()
+
+  inquiry.admin_id = admin_id
+  inquiry.answer_content = answer
+  inquiry.status = "answered"
+  inquiry.answered_at = datetime.now()
+
+  try:
+    db.session.commit()
+
+    send_inquiry_answer_email(
+      to_email=inquiry.email,
+      title=inquiry.title,
+      answer=answer
+    )
+  except Exception:
+    db.session.rollback()
+    return jsonify({"ok":False, "message": "답변 등록 실패."}), 500
+  
+  return jsonify({"ok": True, "message": "답변이 등록되었습니다."}), 200

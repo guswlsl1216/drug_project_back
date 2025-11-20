@@ -1,6 +1,9 @@
 from flask import Flask, jsonify
+from flask_mail import Mail
 from .extensions import db, migrate, login_manager, cors, jwt
 from .config import Config
+
+mail = Mail()
 
 
 def create_app():
@@ -18,6 +21,7 @@ def create_app():
   migrate.init_app(app, db)
   cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
   login_manager.init_app(app)
+  mail.init_app(app)
 
   @jwt.unauthorized_loader
   def handle_missing_or_invalid_token(err):
