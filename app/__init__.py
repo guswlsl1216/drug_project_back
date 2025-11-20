@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from .extensions import db, migrate, login_manager, cors, jwt
 from .config import Config
 
@@ -18,6 +18,17 @@ def create_app():
   migrate.init_app(app, db)
   cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
   login_manager.init_app(app)
+
+  @jwt.unauthorized_loader
+  def handle_missing_or_invalid_token(err):
+    """
+    JWT 토큰이 없거나 유효하지 않아 401 Unauthorized 에러가 발생할 때 호출됩니다.
+    """
+    # HTTP 401 상태 코드와 함께 원하는 메시지를 반환합니다.
+    return jsonify({
+      'ok': False,
+      'message': '로그인 후 이용하십시오.' 
+    }), 401
   
   @jwt.user_lookup_loader
   def user_lookup_callback(_jwt_header, jwt_payload):
