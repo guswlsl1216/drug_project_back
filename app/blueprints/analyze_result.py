@@ -75,12 +75,21 @@ def detect_drug_label():
 
         drug_id = yolo_model.names[int(cl)]
         print(f"✅ 탐지된 약물: ID={drug_id}, 신뢰도={round(conf, 4)}")
+        
+        # 추가된 로직: ITEM_SEQ로 DB에서 ITEM_NAME 조회
+        product_info = db.session.query(MP.ITEM_NAME).filter(
+					MP.ITEM_SEQ == drug_id
+				).first()
+    
+        # 실제 제품명 (조회 실패 시 ITEM_SEQ를 대체값으로 사용)
+        product_name = product_info[0] if product_info else f"제품명 조회 실패 (ITEM_SEQ: {drug_id})"
 
         detections.append({
           "box": [round(x) for x in box],
           "confidence": round(conf, 4),
           "class_id": int(cl),
-          "class_name": yolo_model.names[int(cl)]
+          "class_name": drug_id,
+          "product_name": product_name
         })
 
     return jsonify({"ok":True, "message":"이미지 탐지 완료", "detections":detections}), 200
