@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import pickle
 from flask import Blueprint, app, current_app, jsonify, request, g
 from flask_jwt_extended import get_current_user, get_jwt_identity, jwt_required, verify_jwt_in_request
 from flask_login import current_user, login_required
@@ -8,7 +9,9 @@ from ..models.user import User
 from ..models.review import Review
 from ..models.goods import Goods
 from werkzeug.utils import secure_filename
- 
+from ..extensions import tokenizer, model
+import torch
+
 bp = Blueprint('review', __name__)
 
 #이미지파일 형식 멀쩡한가
@@ -23,6 +26,27 @@ def change_path(image):
   image.save(save_path)
   return f"/static/review/{image.filename}"
 
+def text_filter(text):
+    inputs = tokenizer(
+        text,
+        return_tensors='pt',
+        truncation=True,
+        max_length=512,
+        padding=True
+    )
+    
+    with torch.no_grad():
+        outputs = model(**inputs)
+        logits = outputs.logits
+        probabilities = torch.softmax(logits, dim=1)
+        prediction = torch.argmax(logits, dim=1).item()
+        confidence = probabilities[0][prediction].item()
+    
+    # 문자열로 반환
+    label = '악플' if prediction == 1 else '정상'
+    
+    return label, prediction
+
 @bp.before_request
 def before_api_request():
     
@@ -31,7 +55,8 @@ def before_api_request():
     
     # 특정 엔드포인트는 인증 생략
     skip_list = [
-        'review.getReview'      # 블루프린트명.엔드포인트명
+        'review.getReview',
+        'review.goodsReviewInfo'# 블루프린트명.엔드포인트명
     ]
     if request.endpoint in skip_list:
         return
@@ -54,6 +79,13 @@ def addReview(goods_id):
   content=request.form.get('content')
   user_id=g.user.id
   stars=request.form.get('stars')
+  
+  review_check, review_prediction = text_filter(content)
+  print('-----------------------')
+  print('review_prediction:',review_prediction)
+  print('-----------------------')
+  if review_check=='악플':
+    return jsonify({'ok':False, 'message':'부적절한 단어가 포함되어있습니다'})
   
   image_path = None
   image = request.files.get('image')
@@ -88,11 +120,18 @@ def deleteRoutine(reviewId):
   return jsonify({'ok':False, 'message':'유저id가 일치하지 않습니다'})
 
 @bp.put('/updateReview/<reviewId>')
-def updateRoutine(reviewId):
+def updateReview(reviewId):
   current_review=db.session.query(Review).get(reviewId)
   if current_review.user_id == g.user.id:
     content=request.form.get('content')
     stars=request.form.get('stars')
+    
+    review_check, review_prediction = text_filter(content)
+    print('-----------------------')
+    print('review_prediction:',review_prediction)
+    print('-----------------------')
+    if review_check=='악플':
+      return jsonify({'ok':False, 'message':'부적절한 단어가 포함되어있습니다'})
     
     image=request.files.get('image')
     print(image)
@@ -111,3 +150,17 @@ def updateRoutine(reviewId):
     db.session.commit()
     return jsonify({'ok':True, 'message':'댓글수정 완료'}),200
   return jsonify({'ok':False, 'message':'유저id가 일치하지 않습니다'})
+
+@bp.get('/goodsReviewInfo/<goods_id>')
+def goodsReviewInfo(goods_id):
+  goods = db.session.query(Goods).get(goods_id)
+  reviews = goods.reviews
+  total = 0
+  if not reviews:
+    info={'length':0, 'star_avg':0}
+    return jsonify({'ok':True, 'info':info})
+  for review in reviews:
+    total+=review.stars
+  star_avg = float(round(total / len(reviews), 2))
+  info={'length':len(reviews), 'star_avg':star_avg}
+  return jsonify({'ok':True, 'info':info})
