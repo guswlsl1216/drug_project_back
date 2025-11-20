@@ -37,4 +37,4 @@ class Routine(db.Model):
       return drug.PRDLST_NM
     else:
       drug = db.session.query(User_meds).filter(User_meds.id == id).first()
-      return drug.meds_title
+      return drug.med_title
