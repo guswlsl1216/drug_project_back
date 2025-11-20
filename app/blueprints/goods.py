@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models.goods import Goods
 from app.models.favorite import Favorite
+from app.models.supps_products import SuppsProducts
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from urllib.parse import unquote
 
@@ -132,4 +133,39 @@ def get_goods_detail(goodsId):
     print(f"상품 상세 조회 오류: {e}")
     return jsonify({'ok':False, 'message':'서버 오류로 상품 상세 정보를 불러올 수 없습니다.'}), 500
   
+  #  상호작용 분석을 위한 영양제 상세 정보 조회 (프론트엔드 요청 경로 처리)
+@bp.get('/aiAnalyze/supplements/detail/<int:goodsId>')
+def get_supplement_detail_for_analysis(goodsId):
+    try:
+        # 1. Goods 테이블에서 상품 ID (예: 130)를 사용하여 레코드를 찾고, 
+        #    연결된 supps_id (예: 136075)를 가져옵니다.
+        goods_item = Goods.query.filter_by(id=goodsId, is_active=True).first()
+        
+        if not goods_item or not goods_item.supps_id:
+            # 상품이 없거나 supps_id가 없는 경우
+            return jsonify({'ok': False, 'message': f'상품 ID {goodsId}에 연결된 영양제 정보(supps_id)가 없습니다.'}), 404
+            
+        suppsId_to_lookup = goods_item.supps_id # 실제 조회할 ID: 136075
+        
+        # 2. supps_id (136075)를 사용하여 SuppsProducts 테이블에서 상세 정보를 조회합니다.
+        supplement = SuppsProducts.query.filter_by(id=suppsId_to_lookup).first()
+
+        if not supplement:
+            # supps_products 테이블에 해당 ID의 레코드가 없는 경우
+            return jsonify({'ok': False, 'message': f'supps ID {suppsId_to_lookup}에 해당하는 분석 정보를 찾을 수 없습니다.'}), 404
+
+        # 3. 클라이언트가 요구하는 형식으로 데이터 반환 (원료명 포함)
+        response_data = {
+            'id': supplement.id,
+            'name': supplement.PRDLST_NM,      
+            'korName': supplement.BSSH_NM, 
+            'ingredients': supplement.RAWMTRL_NM, # supps_products에서 원료명 추출
+        }
+
+        return jsonify(response_data), 200
+
+    except Exception as e:
+        print(f"분석용 영양제 상세 조회 중 서버 오류: {e}") 
+        # db.session.rollback() # 필요 시 롤백 추가
+        return jsonify({'ok': False, 'message': '서버 내부 오류로 영양제 정보를 불러올 수 없습니다.'}), 500
 
