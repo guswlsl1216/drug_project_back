@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from .extensions import db, migrate, login_manager, cors, jwt
 from .config import Config
 
@@ -18,6 +18,17 @@ def create_app():
   migrate.init_app(app, db)
   cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
   login_manager.init_app(app)
+
+  @jwt.unauthorized_loader
+  def handle_missing_or_invalid_token(err):
+    """
+    JWT 토큰이 없거나 유효하지 않아 401 Unauthorized 에러가 발생할 때 호출됩니다.
+    """
+    # HTTP 401 상태 코드와 함께 원하는 메시지를 반환합니다.
+    return jsonify({
+      'ok': False,
+      'message': '로그인 후 이용하십시오.' 
+    }), 401
   
   @jwt.user_lookup_loader
   def user_lookup_callback(_jwt_header, jwt_payload):
@@ -45,6 +56,11 @@ def create_app():
   from .blueprints.aiAnalyze import bp as aiAnalyze_bp
   from .blueprints.admin import bp as admin_bp
   from .blueprints.review import bp as review_bp
+  from .blueprints.user_cart import bp as cart_bp
+  from .blueprints.payments import bp as payments_bp
+  from .blueprints.order import bp as order_bp
+  from .blueprints.inquiry import bp as inquiry_bp
+  from .blueprints.qna import bp as qna_bp
 
   
 
@@ -61,5 +77,10 @@ def create_app():
   app.register_blueprint(aiAnalyze_bp, url_prefix='/aiAnalyze')
   app.register_blueprint(admin_bp, url_prefix='/admin')
   app.register_blueprint(review_bp, url_prefix='/review')
+  app.register_blueprint(cart_bp, url_prefix='/cart')
+  app.register_blueprint(payments_bp, url_prefix='/payments')
+  app.register_blueprint(order_bp, url_prefix='/orders')
+  app.register_blueprint(inquiry_bp, url_prefix='/inquiry')
+  app.register_blueprint(qna_bp, url_prefix='/qna')
 
   return app

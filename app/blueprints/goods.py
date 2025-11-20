@@ -2,8 +2,8 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models.goods import Goods
 from app.models.favorite import Favorite
-from flask_jwt_extended import jwt_required, get_jwt_identity, decode_token
-from jwt.exceptions import InvalidTokenError
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+from urllib.parse import unquote
 
 
 bp = Blueprint('goods', __name__)
@@ -23,32 +23,21 @@ SORT_MAP = {
 
 # 상품 목록 조회 및 정렬/필터링
 @bp.get('/')
-@jwt_required(optional=True)
 def get_goods_list():
   try:
-    raw_user_id = get_jwt_identity()
     user_id = None
 
-    auth_header = request.headers.get('Authorization')
-    if auth_header and "Bearer" in auth_header:
-      token = auth_header.replace("Bearer ", "")
+    try: # 토큰이 유효하면 사용자 ID를 가져옴(로그인 상태)
+      verify_jwt_in_request(optional=True)
+      user_id = get_jwt_identity()
+    except Exception:
+      user_id = None
 
-      try:
-        decoded = decode_token(token)
-        raw_user_id=decoded.get('sub') # 기본적으로 사용자 ID를 저장하는 필드
-      except InvalidTokenError:
-        print("DEBUG: Manually caught InvalidTokenError, proceeding without user_id.")
-        pass
+    raw_category_key = request.args.get('category_key')
+    raw_category_value = request.args.get('category_value')
 
-    if raw_user_id is not None:
-      try:
-        user_id=int(raw_user_id)
-      except (ValueError, TypeError):
-        user_id = None
-
-
-    category_key = request.args.get('category_key')
-    category_value = request.args.get('category_value')
+    category_key = unquote(raw_category_key) if raw_category_key else None
+    category_value = unquote(raw_category_value) if raw_category_value else None
     sort_by = request.args.get('sort_by', 'newest')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
@@ -98,7 +87,7 @@ def get_goods_list():
       'total_pages':pagination.pages,
       'current_page':pagination.page
     }), 200
-  
+    
   except Exception as e:
     db.session.rollback()
     print(f"상품 목록 조회 오류: {e}")
@@ -107,10 +96,15 @@ def get_goods_list():
 
 # 상품 상세 정보 조회
 @bp.get('/<int:goodsId>')
-@jwt_required(optional=True)
 def get_goods_detail(goodsId):
   try:
-    user_id = get_jwt_identity()
+    user_id = None
+
+    try: # 토큰이 유효하면 사용자 ID를 가져옴(로그인 상태)
+      verify_jwt_in_request(optional=True)
+      user_id = get_jwt_identity()
+    except Exception:
+      user_id = None
 
     # 상품ID로 조회 및 판매 활성화된 상품만 필터링
     product = Goods.query.filter_by(id=goodsId, is_active=True).first()
