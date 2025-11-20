@@ -31,3 +31,68 @@ class QnA(db.Model):
 
   def __repr__(self):
     return f'<QnA {self.id}: {self.question_title}>'
+  
+  def to_dict(self):
+    return {
+      "id": self.id,
+      "user": {
+        "id": self.user_id,
+        "nickname": self.user.nickname
+      },
+      "goods" : {
+        "id": self.goods_id,
+        "name": self.goods.goods_name,
+        "image": self.goods.image_path
+      },
+      "question_title" : self.question_title,
+      "question_content" : self.question_content,
+      "created_at" : self.created_at,
+      "admin_id" : self.admin_id,
+      "answer_content" : self.answer_content,
+      "answered_at" : self.answered_at,
+      "is_private" : self.is_private,
+      "visibility_label": "비밀글" if self.is_private else "전체공개",  # ← 라벨은 별도
+      "status" : self.status,
+      "status_label": "답변대기" if self.status == "pending" else "답변완료",
+    }
+  
+  def admin_to_dict(self):
+    return {
+      "source": "qna",  # 상품문의인지 구분 가능
+
+      "id": self.id,
+
+      # 공통 user 형태
+      "user": {
+        "id": self.user_id,
+        "nickname": self.user.nickname
+      },
+
+      # 관리자 테이블 공통 필드
+      "name": self.user.nickname,     # Inquiry 의 name 필드와 통일
+      "email": self.user.email,       # 고객센터 문의와 맞추기
+
+      "type": "상품문의",               # Inquiry 의 type 과 동일 포지션
+      "question_title": self.question_title,
+      "question_content": self.question_content,
+
+      # 상품 정보
+      "goods_id": self.goods_id,
+      "goods_name": self.goods.goods_name if self.goods else "",
+      "goods_image": self.goods.image_path if self.goods else "",
+
+      # 상태
+      "status": self.status,
+      "status_label": "답변대기" if self.status == "pending" else "답변완료",
+
+      "is_private": self.is_private,
+      "visibility_label": "비밀글" if self.is_private else "전체공개",
+
+      "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") 
+                    if self.created_at else None,
+
+      # 답변 정보
+      "answer_content": self.answer_content,
+      "answered_at": self.answered_at.strftime("%Y-%m-%d %H:%M:%S")
+                      if self.answered_at else None,
+    }

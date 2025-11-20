@@ -122,6 +122,9 @@ def save_payment_data():
       user.detailed_address=order_data.get("address_detail")
       user.zipcode=order_data.get("zipcode")
 
+      if not user.tel:
+        user.tel = order_data.get("phone")
+
     # 유저 포인트 차감
     # if used_points > 0:
     #   user.point = (user.point or 0) - used_points # type: ignore[operator]

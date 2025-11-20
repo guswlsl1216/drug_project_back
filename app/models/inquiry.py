@@ -17,7 +17,46 @@ class Inquiry(db.Model):
   status = db.Column(db.String(20), default='pending') # 문의상태(답변대기, 완료 등)
   created_at = db.Column(db.DateTime, default=datetime.now)
 
-  user = db.relationship('User', back_populates='inquiries')
+  # 답변 필드(관리자)
+  admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # 관리자 ID
+  answer_content = db.Column(db.Text, nullable=True) # 답변은 없을 수도 있음
+  answered_at = db.Column(db.DateTime, nullable=True)
+  admin = db.relationship('User', foreign_keys=[admin_id], back_populates='inquiry_answers')
+
+  user = db.relationship('User', back_populates='inquiries', foreign_keys=[user_id]) # 질문 작성자
 
   def __repr__(self):
     return f'<Inquiry {self.id}: {self.title}>'
+  
+  def to_dict(self):
+    return {
+      "source": "inquiry",
+      "id": self.id,
+
+      "user": {
+        "id": self.user_id,
+        "nickname": self.user.nickname if self.user else None,
+      },
+
+      "name": self.name,
+      "email": self.email,
+
+      "type": self.type,
+      "title": self.title,
+      "content": self.content,
+
+      "goods_id": None,
+      "goods_name": None,
+      "goods_image": None,
+
+      "status": self.status,
+      "status_label": "답변대기" if self.status == "pending" else "답변완료",
+
+      "is_private": False,
+      "visibility_label": "전체공개",
+
+      "created_at": self.created_at,
+      
+      "answer_content": self.answer_content,
+      "answered_at": self.answered_at,
+    }
