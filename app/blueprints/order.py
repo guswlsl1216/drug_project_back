@@ -161,3 +161,43 @@ def order_detail(id):
     "ok" : True,
     "order" : data
   }), 200
+
+@bp.get("/addresses")
+@jwt_required()
+def get_order_addresses():
+  user_id = get_current_user()
+  if not user_id:
+    return jsonify({"ok" : False, "message": "로그인이 필요합니다."}), 401
+  
+  orders = (
+    Order.query
+      .filter_by(user_id=user_id)
+      .filter(Order.status == "PAID")
+      .order_by(Order.payment_at.desc())
+      .all()
+  )
+
+  seen = set()
+  addresses = []
+
+  for o in orders:
+    key = (o.receiver, o.phone, o.zipcode, o.address, o.address_detail)
+    if key in seen:
+      continue
+    seen.add(key)
+
+    addresses.append({
+      "receiver": o.receiver,
+      "phone" : o.phone,
+      "zipcode" : o.zipcode,
+      "address" : o.address,
+      "address_detail" : o.address_detail
+    })
+
+    if len(addresses) >= 10:  # 최대 10개 정도만
+      break
+
+  return jsonify({
+    "ok" : True,
+    "addresses" : addresses
+  }), 200

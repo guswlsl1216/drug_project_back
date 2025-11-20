@@ -26,3 +26,11 @@ class Config:
 
   # 토스 결제 시크릿 키 : 원래는 외부 공유 금지, 지금은 테스트용
   WIDGET_SECRET_KEY = "test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6"
+
+  MAIL_SERVER = os.environ.get('MAIL_SERVER')
+  MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
+  MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'True') == 'True'
+  MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+  MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+  MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', MAIL_USERNAME)
+
