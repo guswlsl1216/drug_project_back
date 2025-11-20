@@ -75,12 +75,21 @@ def detect_drug_label():
 
         drug_id = yolo_model.names[int(cl)]
         print(f"✅ 탐지된 약물: ID={drug_id}, 신뢰도={round(conf, 4)}")
+        
+        # 추가된 로직: ITEM_SEQ로 DB에서 ITEM_NAME 조회
+        product_info = db.session.query(MP.ITEM_NAME).filter(
+					MP.ITEM_SEQ == drug_id
+				).first()
+    
+        # 실제 제품명 (조회 실패 시 ITEM_SEQ를 대체값으로 사용)
+        product_name = product_info[0] if product_info else f"제품명 조회 실패 (ITEM_SEQ: {drug_id})"
 
         detections.append({
           "box": [round(x) for x in box],
           "confidence": round(conf, 4),
           "class_id": int(cl),
-          "class_name": yolo_model.names[int(cl)]
+          "class_name": drug_id,
+          "product_name": product_name
         })
 
     return jsonify({"ok":True, "message":"이미지 탐지 완료", "detections":detections}), 200
@@ -191,9 +200,10 @@ def get_history():
   user = get_current_user()
   current_user_id = user.id
   page = request.args.get('page', type=int, default=1)
+  per_page = request.args.get("per_page", 10, type=int)
 
-  # page가 없거나 1보다 작으면 1로 반환
-  if page is None and page < 1:
+  # page가 1보다 작으면 1로 반환
+  if page < 1:
     page = 1
 
   history = Analyze_result.query\
@@ -201,26 +211,28 @@ def get_history():
               .order_by(Analyze_result.analysis_date.desc())
   
   try:
-    history = history.paginate(page=page, per_page=5, error_out=False)
+    history = history.paginate(page=page, per_page=per_page, error_out=False)
     
-    if page < history.pages and history.total > 0:
+    # 요청된 페이지가 전체 페이지 수를 초과하는 경우 마지막 페이지로
+    if page > history.pages and history.total > 0:
+      page = history.pages
+      history = history.paginate(page=page, per_page=per_page, error_out=False)
+        
+    # 항목이 아예 없는 경우 빈 페이지 반환
+    elif history.total == 0:
       pass
       
   except Exception as e:
     return jsonify({'ok':False, 'message': 'pagination 처리 중 오류 발생'}), 500
-  
-
-  pageNumbers = [page for page in history.iter_pages()]
 
   return jsonify({
     'ok':True,
     'history':[h.to_dict() for h in history.items],
     'total':history.total,
-    'has_prev':history.has_prev,
-    'has_next':history.has_next,
-    'pageNumbers':pageNumbers,
-    'pages':history.pages
-  })
+    'page':history.page,
+    'pages':history.pages,
+    'per_page':history.per_page
+  }), 200
 
 # 분석 결과 상세 불러오기
 @bp.get('/history/detail/<int:id>')

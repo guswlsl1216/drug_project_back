@@ -8,14 +8,20 @@ from ..models.cart import Cart
 from ..models.payment import Payment
 from ..models.order import Order
 from ..models.user import User
+from ..models.qna import QnA
+from ..models.inquiry import Inquiry
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
+from datetime import datetime
+from ..utils.decorators import admin_required
+from ..utils.email import send_inquiry_answer_email
 
 bp = Blueprint('admin', __name__)
 
 # 상품 등록
 @bp.post('/goods')
 @jwt_required()
+@admin_required
 def write_goods():
   data = request.get_json()
 
@@ -58,7 +64,7 @@ def write_goods():
   goods_desc = sanitize_html(goods_desc)
 
   user_id = get_current_user()
-  
+
   goods = Goods(
     category=category,
     classify=classify,
@@ -88,6 +94,7 @@ def write_goods():
 # 상품 이미지 등록
 @bp.post('/upload')
 @jwt_required()
+@admin_required
 def image_upload():
   from flask import current_app, url_for
   from werkzeug.utils import secure_filename
@@ -162,6 +169,7 @@ def get_goods(id):
 # 상품 수정
 @bp.put("/edit/<int:id>")
 @jwt_required()
+@admin_required
 def edit_goods(id):
   data = request.get_json()
 
@@ -208,7 +216,7 @@ def edit_goods(id):
   try:
     user_id = int(user_id)
   except Exception:
-      user_id = None
+    user_id = None
 
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
@@ -238,15 +246,16 @@ def edit_goods(id):
 # 상품 삭제
 @bp.delete("/goods/<int:id>")
 @jwt_required()
+@admin_required
 def delete_goods(id):
   goods = db.session.query(Goods).get(id)
 
   user_id = get_current_user()
-  
+
   try:
     user_id = int(user_id)
   except Exception:
-      user_id = None
+    user_id = None
 
   if not goods:
     return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
@@ -284,7 +293,13 @@ def delete_goods(id):
   
 # 품절 상품
 @bp.get("/goods/soldout")
+@jwt_required()
 def get_soldout_goods():
+  user_id = get_current_user()
+  user = db.session.query(User).get(user_id)
+  if not user or user.role != "admin":
+    return jsonify({"ok": False, "message": "관리자만 조회할 수 있습니다."}), 403
+  
   page = request.args.get("page", type=int, default=1)
   per_page = 10
 
@@ -304,8 +319,46 @@ def get_soldout_goods():
     "per_page": per_page
   }), 200
 
+# 품절 상품 재고 수정
+@bp.put("/goods/<int:id>/stock")
+@jwt_required()
+@admin_required
+def soldout_goods_edit(id):
+  data = request.get_json()
+  stock = data.get("stock")
+
+  if stock is None:
+    return jsonify({"ok": False, "message": "stock 값이 필요합니다."}), 400
+  
+  try:
+    stock = int(stock)
+  except ValueError:
+    return jsonify({"ok": False, "message": "stock 값은 숫자만 가능합니다."}), 400
+
+  goods = Goods.query.get(id)
+
+  if not goods:
+    return jsonify({'ok': False, 'message': '상품을 찾을 수 없습니다.'}), 404
+
+  goods.stock = stock
+
+  if stock > 0:
+    goods.is_active = True
+  else:
+      goods.is_active = False
+
+  try:
+    db.session.commit()
+  except Exception:
+    db.session.rollback()
+    return jsonify({'ok' : False, 'message' : '재고 수정 실패.'}), 500
+  
+  return jsonify({"ok" : True, "message": "재고가 수정되었습니다.", "stock": stock}), 200
+
 # 상품 리스트
 @bp.get('/goods')
+@jwt_required()
+@admin_required
 def board_list():
   page = request.args.get('page', type=int, default=1)
   per_page = request.args.get("per_page", 10, type=int)
@@ -323,6 +376,8 @@ def board_list():
   }), 200
   
 @bp.get('/payments')
+@jwt_required()
+@admin_required
 def payments_list():
   page = request.args.get('page', type=int, default=1)
   per_page = request.args.get("per_page", 10, type=int)
@@ -378,6 +433,8 @@ def payments_list():
   }), 200
 
 @bp.get('/orders/<int:orders_id>')
+@jwt_required()
+@admin_required
 def orderDetali(orders_id):
   order = db.session.query(Order).get(orders_id)
 
@@ -405,3 +462,142 @@ def orderDetali(orders_id):
   } for it in items]
   
   return jsonify({'ok' : True, 'order' : data}), 200
+
+
+@bp.get('/qna')
+@jwt_required()
+@admin_required
+def qna_list():
+  page = request.args.get('page', type=int, default=1)
+  per_page = request.args.get("per_page", 10, type=int)
+
+  status = request.args.get("status")
+  query = request.args.get("query")
+
+  qna_q = QnA.query.join(User, QnA.user_id == User.id).order_by(QnA.created_at.desc())
+
+  # 문의 상태 필터 (pending / answered 등)
+  if status:
+    qna_q = qna_q.filter(QnA.status == status)
+  
+  # 검색어 (상품번호 OR 문의자명)
+  if query:
+    # .isdigit() : 모든 문자가 숫자이면 True, 하나라도 숫자가 아닌 문자가 포함되어 있으면 False를 반환
+    if query.isdigit():
+      # 숫자 → 상품 ID 검색
+      qna_q = qna_q.filter(QnA.goods_id == int(query))
+    else:
+      # 문자열 → 유저 닉네임 검색
+      qna_q = qna_q.filter(User.nickname.like(f"%{query}%"))
+
+  pagination = qna_q.paginate(page=page, per_page=per_page)
+
+  return jsonify({
+    'ok' : True,
+    'qna': [q.admin_to_dict() for q in pagination.items],
+    'total' : pagination.total,
+    'page' : pagination.page,
+    'pages' : pagination.pages,
+    'per_page': per_page
+  }), 200
+
+@bp.post('/qna/<int:id>')
+@jwt_required()
+@admin_required
+def answer_qna(id):
+  data = request.get_json()
+  answer = data.get("answer")
+
+  if not answer:
+    return jsonify({"ok" : False, "message" : "답변 내용을 입력해주세요."}), 400
+
+  qna = db.session.query(QnA).get(id)
+  if not qna:
+    return jsonify({"ok":False, "message" : "문의 내역을 찾을 수 없습니다."}), 404
+  
+  admin_id = get_current_user()
+  
+  qna.admin_id = admin_id
+  qna.answer_content = answer
+  qna.status = "answered"
+  qna.answered_at = datetime.now()
+
+  try:
+    db.session.commit()
+  except Exception:
+    db.session.rollback()
+    return jsonify({'ok' : False, 'message' : '답변 등록 실패.'}), 500
+
+  return jsonify({
+    "ok" : True,
+    "message" : "답변이 등록되었습니다."
+  }), 200
+
+@bp.get('/inquiry')
+@jwt_required()
+@admin_required
+def inquiry_list():
+  page = request.args.get('page', type=int, default=1)
+  per_page = request.args.get("per_page", 10, type=int)
+
+  status = request.args.get("status")
+  query = request.args.get("query")
+
+  inquiry_q = Inquiry.query.order_by(Inquiry.created_at.desc())
+
+  # 문의 상태 필터 (pending / answered 등)
+  if status:
+    inquiry_q = inquiry_q.filter(Inquiry.status == status)
+  
+  # 검색어 (상품번호 OR 문의자명)
+  if query:
+    inquiry_q = inquiry_q.filter(
+      (Inquiry.name.like(f"%{query}%")) |
+      (Inquiry.email.like(f"%{query}%"))
+    )
+
+  pagination = inquiry_q.paginate(page=page, per_page=per_page)
+
+  return jsonify({
+    'ok' : True,
+    'inquiries': [i.to_dict() for i in pagination.items],
+    'total' : pagination.total,
+    'page' : pagination.page,
+    'pages' : pagination.pages,
+    'per_page': per_page
+  }), 200
+
+@bp.post('/inquiry/<int:id>')
+@jwt_required()
+@admin_required
+def answer_inquiry(id):
+  data = request.get_json()
+  answer = data.get("answer")
+
+  if not answer:
+    return jsonify({"ok" : False, "message" : "답변 내용을 입력해주세요."}), 400
+  
+  inquiry = Inquiry.query.get(id)
+  if not inquiry:
+    return jsonify({"ok" : False, "message" : "문의 내역을 찾을 수 없습니다."}), 404
+  
+  admin_id = get_current_user()
+
+  inquiry.admin_id = admin_id
+  inquiry.answer_content = answer
+  inquiry.status = "answered"
+  inquiry.answered_at = datetime.now()
+
+  try:
+    db.session.commit()
+
+    send_inquiry_answer_email(
+      to_email=inquiry.email,
+      title=inquiry.title,
+      answer=answer
+    )
+  except Exception:
+    db.session.rollback()
+    return jsonify({"ok":False, "message": "답변 등록 실패."}), 500
+  
+  return jsonify({"ok": True, "message": "답변이 등록되었습니다."}), 200
