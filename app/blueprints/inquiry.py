@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('inquiry', __name__)
 
 @bp.route('/contact', methods=['post'])
-@jwt_required()
+@jwt_required(optional=True)
 def submit_inquiry():
   data = {}
 
