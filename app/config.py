@@ -21,5 +21,8 @@ class Config:
   JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=2) # accessToken은 2시간
   JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7) # refreshToken은 7일
 
-  SESSION_COOKIE_SAMESITE = 'None'
+  # SESSION_COOKIE_SAMESITE = 'None'
   SESSION_COOKIE_SECURE = False
+
+  # 토스 결제 시크릿 키 : 원래는 외부 공유 금지, 지금은 테스트용
+  WIDGET_SECRET_KEY = "test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6"
