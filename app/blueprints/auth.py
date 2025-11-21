@@ -6,6 +6,7 @@ from ..utils.db_helpers import safe_commit
 from ..utils.response import make_response
 from ..utils.validators import validate_email, validate_password, is_unique_user
 from flask_jwt_extended import jwt_required, current_user
+from ..utils.services_auth import authenticate_user
 
 bp = Blueprint('auth',__name__)
 
@@ -123,6 +124,7 @@ def verify_password():
     return make_response(ok=False, message="비밀번호를 입력해주세요.", status=400)
   
   if user.check_password(password):
+    
     return make_response(ok=True, message="비밀번호 확인 완료", status=200)
   
   else:
