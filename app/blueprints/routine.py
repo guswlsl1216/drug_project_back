@@ -12,6 +12,9 @@ from app.models.auto import get_class
 from ..models.user import User
 from datetime import date
 
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
+
 bp = Blueprint('routine', __name__)
 SP = get_class("supps_products") 
 MP = get_class("meds_products") 
@@ -34,6 +37,27 @@ def before_api_request():
         print('-----------', e)
         return jsonify({'ok': False, 'message': '인증 실패ㅋㅋ'}), 401
 
+def init_scheduler(app):
+  scheduler = BackgroundScheduler()
+  today = datetime.now()
+  def accumulate():
+    with app.app_context():
+      users = db.session.query(User).all()
+      print('-------------포인트 정산-------------')
+      
+      for user in users:
+        for routine in user.routine:
+          if routine.start_date<=today and routine.end_date>=today:
+            print(user.username,':',routine)
+        # routine_ids = [routine.id for routine in user.routine]
+        # routines = db.session.query(Routine).filter(Routine.id.in_(routine_ids),Routine.start_date<=today,Routine.end_date>=today).all()  
+      print('-------------포인트 정산완료-------------')
+      pass
+  scheduler.add_job(func=accumulate, trigger="cron", hour=17, minute=18)
+  scheduler.start()
+  # 애플리케이션 종료 시 스케줄러도 종료
+  atexit.register(lambda: scheduler.shutdown())
+  
 #루틴 추가
 @bp.post('/addRoutine')
 def addRoutine():
@@ -411,6 +435,3 @@ def get_drug_history(user_id):
     'history' : result,
     'total_achievement' : total_achievement
   }), 200
-
-
-

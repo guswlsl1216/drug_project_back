@@ -47,6 +47,8 @@ def create_app():
       "supps_products", "meds_products", 
       "drug_contraindications", "supps_meds_interaction"
     })
+  from .blueprints.routine import init_scheduler
+  init_scheduler(app)
 
   from .blueprints.routine import bp as routine_bp
   from .blueprints.user_drugs import bp as user_drugs_bp
