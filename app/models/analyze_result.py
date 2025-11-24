@@ -15,6 +15,7 @@ class Analyze_result(db.Model):
   user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
   user = db.relationship('User', backref=db.backref('analyze_results'))
   analysis_uid = db.Column(db.String(64), unique=True, nullable=False)
+  image_url = db.Column(db.String(512))
 
   def to_dict(self):
     return {
@@ -26,5 +27,6 @@ class Analyze_result(db.Model):
       'duplicates':self.duplicates,
       'interactions':self.interactions,
       'user_id':self.user_id,
-      'analysis_uid':self.analysis_uid
+      'analysis_uid':self.analysis_uid,
+      'image_url':self.image_url
     }
