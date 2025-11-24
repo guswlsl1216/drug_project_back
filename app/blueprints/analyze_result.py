@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_login import current_user, login_required
 from flask_jwt_extended import get_current_user, jwt_required
 from datetime import datetime
@@ -13,7 +13,7 @@ from ..models.analyze_result import Analyze_result
 from ultralytics import YOLO
 import io
 from PIL import Image
-import os
+import os, json, uuid
 
 # analyze_result.py가 위치한 폴더의 경로 (drug_project_back/app/blueprints)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -163,12 +163,18 @@ def get_drug_info(product_id):
 @bp.post('/save')
 @jwt_required()
 def save_result():
-  result = request.get_json()
   user = get_current_user()
   user_id = user.id
 
-  if result is None:
+  img_file = request.files.get('file') or None
+  result_json_string = request.form.get('result')
+  if result_json_string is None:
     return jsonify({'ok':False, 'message':'분석 결과가 전송되지 않았습니다.'}), 400
+  
+  try:
+    result = json.loads(result_json_string) 
+  except json.JSONDecodeError:
+    return {"error": "result_data JSON 파싱 오류."}, 400
   
   # 중복 저장 방지
   if Analyze_result.query.filter_by(
@@ -177,14 +183,35 @@ def save_result():
   ).first():
     return jsonify({'ok': False, 'message': '이미 저장된 분석 결과입니다.'}), 400
   
-  result = Analyze_result(**result, user_id=user_id)
+  if img_file:
+    unique_filename = str(uuid.uuid4())
+    file_extension = img_file.filename.rsplit('.', 1)[1].lower() if '.' in img_file.filename else 'png'
+    final_filename = f"{unique_filename}.{file_extension}"
 
-  db.session.add(result)
+    save_dir = os.path.join(current_app.root_path, 'static', 'analyze')
+
+    if not os.path.exists(save_dir):
+      os.makedirs(save_dir)
+
+    save_path = os.path.join(save_dir, final_filename)
+
+    try:
+      img_file.save(save_path)
+      public_url = f'/static/analzye/{final_filename}'
+      result['image_url'] = public_url
+    except Exception as e:
+      print(f"이미지 저장 중 오류 발생: {e}")
+      return jsonify({'ok': False, 'message': '이미지 저장 중 오류가 발생했습니다.'}), 500
+  
+  result_model = Analyze_result(**result, user_id=user_id)
+
+  db.session.add(result_model)
 
   try:
     db.session.commit()
   except Exception:
     db.session.rollback()
+    os.remove(save_path)
     return jsonify({'ok':False, 'message':'분석 결과 저장 중 오류 발생'}), 400
   
   return jsonify({

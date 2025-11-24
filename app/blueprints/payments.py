@@ -7,6 +7,7 @@ from ..models.order import Order
 from ..models.orderitem import OrderItem
 from ..models.payment import Payment
 from ..models.goods import Goods
+from ..models.cart import Cart
 
 bp = Blueprint('payments', __name__)
 original_string = Config.WIDGET_SECRET_KEY + ":"
@@ -112,7 +113,8 @@ def save_payment_data():
         goods_id=item.get("goods_id"),
         unit_price=item.get("unit_price"),
         count=item.get("count"),
-        subtotal=item.get("subtotal")
+        subtotal=item.get("subtotal"),
+        cart_id = item.get("cart_id")
       )
       db.session.add(order_item)
 
@@ -126,14 +128,11 @@ def save_payment_data():
       if not user.tel:
         user.tel = order_data.get("phone")
 
-    # 유저 포인트 차감
-    # if used_points > 0:
-    #   user.point = (user.point or 0) - used_points # type: ignore[operator]
-
     db.session.commit()
     return jsonify({'ok':True, 'message':'결제 요청 정보 및 주문 정보가 저장되었습니다.'}), 200
   except Exception as e:
     db.session.rollback()
+    print(f"주문 정보 DB 저장 중 에러 발생 : {e}")
     return jsonify({'ok':False, 'message':'주문 정보 DB 저장 중 에러가 발생했습니다.'}), 500
 
 # 결제 정보 검증 & 결제 승인
@@ -232,6 +231,15 @@ def confirm_payment():
         user.point = user.point - order.used_points + order.saved_points
         if user.point < 0:
           user.point = 0
+
+        # 결제 완료 시 cart 테이블 수정
+        # 주문 항목에서 NULL이 아닌 고유한 cart_id 목록 추출
+        cart_ids_to_delete = {item.cart_id for item in order_items if item.cart_id is not None}
+        # 목록을 돌며 해당 cart_id 레코드 삭제
+        for cart_id in cart_ids_to_delete:
+          cart = db.session.query(Cart).filter_by(id=cart_id).with_for_update().first()
+          if cart:
+            db.session.delete(cart)
 
         try:
           db.session.commit()
