@@ -26,7 +26,9 @@ def signup():
     age = int(age_str) if age_str.isdigit() else None # 숫자가 아니면 None 처리
     gender = data.get('gender')
     address = data.get('address')
-    detailed_address = data.get('detailed_address')
+    detailed = data.get('detailed')
+    jibun = data.get('jibun')
+    zipcode = data.get('zipcode')
     tel = data.get('tel')
     role = data.get('role')
 
@@ -77,7 +79,9 @@ def signup():
       age=age,
       gender=gender,
       address=address,
-      detailed_address=detailed_address,
+      detailed=detailed,
+      jibun=jibun,
+      zipcode=zipcode,
       tel=tel,
       role=role
     )
@@ -130,14 +134,14 @@ def verify_password():
   else:
     return make_response(ok=False, message="비밀번호가 일치하지 않습니다.", status=401)
 
-@bp.put('/user')
+@bp.post('/user')
 @jwt_required()
 def update_user():
   user = current_user
   data = request.get_json()
 
   # 수정 가능한 필드
-  allowed_fields = ['nickname', 'email', 'address','detailed_address','tel','password']
+  allowed_fields = ['nickname', 'email', 'address','detailed','jibun','zipcode','tel','password','age','gender']
   for filed in allowed_fields:
     if filed in data and data[filed]:
       if filed == 'password':
