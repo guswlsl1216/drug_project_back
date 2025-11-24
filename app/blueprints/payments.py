@@ -7,6 +7,7 @@ from ..models.order import Order
 from ..models.orderitem import OrderItem
 from ..models.payment import Payment
 from ..models.goods import Goods
+from ..models.cart import Cart
 
 bp = Blueprint('payments', __name__)
 original_string = Config.WIDGET_SECRET_KEY + ":"
@@ -111,7 +112,8 @@ def save_payment_data():
         goods_id=item.get("goods_id"),
         unit_price=item.get("unit_price"),
         count=item.get("count"),
-        subtotal=item.get("subtotal")
+        subtotal=item.get("subtotal"),
+        carts_id = item.get("cart_id")
       )
       db.session.add(order_item)
 
@@ -124,10 +126,6 @@ def save_payment_data():
 
       if not user.tel:
         user.tel = order_data.get("phone")
-
-    # 유저 포인트 차감
-    # if used_points > 0:
-    #   user.point = (user.point or 0) - used_points # type: ignore[operator]
 
     db.session.commit()
     return jsonify({'ok':True, 'message':'결제 요청 정보 및 주문 정보가 저장되었습니다.'}), 200
@@ -231,6 +229,12 @@ def confirm_payment():
         user.point = user.point - order.used_points + order.saved_points
         if user.point < 0:
           user.point = 0
+
+        # 결제 완료 시 cart 테이블 수정 (해당하는 cart id 레코드 삭제)
+        for item in order_items:
+          cart = db.session.query(Cart).filter_by(id=item.cart_id).with_for_update().first()
+          if cart:
+            db.session.delete(cart)
 
         try:
           db.session.commit()

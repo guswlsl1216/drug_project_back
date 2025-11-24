@@ -8,6 +8,7 @@ class Cart(db.Model):
   goods = db.relationship('Goods', back_populates='carts')
   user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
   user = db.relationship('User', back_populates='carts')
+  # orderitems = db.relationship('OrderItem', back_populates='carts')
 
   def to_dict(self):
     return {
