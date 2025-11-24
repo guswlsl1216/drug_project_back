@@ -23,7 +23,7 @@ class Analyze_result(db.Model):
       'status':self.status,
       'meds':self.meds,
       'supps':self.supps,
-      'analysis_date':self.analysis_date.strftime('%Y-%m-%d %H:%M:%S'),
+      'analysis_date':self.analysis_date,
       'duplicates':self.duplicates,
       'interactions':self.interactions,
       'user_id':self.user_id,
