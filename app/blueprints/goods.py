@@ -43,7 +43,7 @@ def get_goods_list():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
 
-    query = Goods.query.filter_by(is_active=True)
+    query = Goods.query
 
     # 카테고리 필터링 로직
     if category_value and category_value != 'All':
@@ -108,7 +108,7 @@ def get_goods_detail(goodsId):
       user_id = None
 
     # 상품ID로 조회 및 판매 활성화된 상품만 필터링
-    product = Goods.query.filter_by(id=goodsId, is_active=True).first()
+    product = Goods.query.filter_by(id=goodsId).first()
 
     if not product:
       return jsonify({'ok':False, 'message':'상품을 찾을 수 없습니다.'}), 404
