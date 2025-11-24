@@ -181,7 +181,7 @@ def get_order_addresses():
   addresses = []
 
   for o in orders:
-    key = (o.receiver, o.phone, o.zipcode, o.address, o.address_detail)
+    key = (o.receiver, o.phone, o.zipcode, o.address, o.address_detail, o.address_extra)
     if key in seen:
       continue
     seen.add(key)
@@ -191,7 +191,8 @@ def get_order_addresses():
       "phone" : o.phone,
       "zipcode" : o.zipcode,
       "address" : o.address,
-      "address_detail" : o.address_detail
+      "address_detail" : o.address_detail,
+      "address_extra": o.address_extra or ""
     })
 
     if len(addresses) >= 10:  # 최대 10개 정도만

@@ -44,7 +44,6 @@ def create_qna(goods_id):
       question_title=title,
       question_content=content,
       is_private=is_private,
-      created_at=datetime.now(),
       status="pending"
     )
 
@@ -100,10 +99,10 @@ def get_qna_list(goods_id):
       'answer':q_answer,
       'status':qna.status,
       'is_private':qna.is_private,
-      'created_at':qna.created_at.strftime('%Y-%m-%d %H:%M'),
+      'created_at':qna.created_at,
       'is_owner':str(current_user_id) == str(qna.user_id),
       'answered_at':(
-        qna.answered_at.strftime('%Y-%m-%d %H:%M')
+        qna.answered_at
         if qna.answered_at else None
       )
     })

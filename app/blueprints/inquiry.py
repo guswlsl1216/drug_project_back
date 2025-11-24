@@ -52,7 +52,6 @@ def submit_inquiry():
       type = data['type'],
       title = data['title'],
       content = data['content'],
-      created_at = datetime.now(),
       status='pending'
     )
 

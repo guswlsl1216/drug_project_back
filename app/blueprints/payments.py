@@ -96,6 +96,7 @@ def save_payment_data():
       zipcode=order_data.get("zipcode"),
       address=order_data.get("address"),
       address_detail=order_data.get("address_detail"),
+      address_extra=order_data.get("address_extra", ""),  
       receiver=order_data.get("receiver"),
       phone=order_data.get("phone"),
       order_code = order_id
