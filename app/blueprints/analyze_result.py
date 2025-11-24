@@ -197,7 +197,7 @@ def save_result():
 
     try:
       img_file.save(save_path)
-      public_url = f'/static/analzye/{final_filename}'
+      public_url = f'/static/analyze/{final_filename}'
       result['image_url'] = public_url
     except Exception as e:
       print(f"이미지 저장 중 오류 발생: {e}")
@@ -276,11 +276,21 @@ def get_history_detail(id):
 @requires_ownership(Analyze_result)
 def delete_history_detail(id):
   result = db.session.query(Analyze_result).get(id)
+  image_url = result.image_url
 
   db.session.delete(result)
 
   try:
     db.session.commit()
+
+    if image_url:
+      file_path = os.path.join(current_app.root_path, image_url.lstrip('/'))
+      
+      if os.path.exists(file_path):
+        try:
+          os.remove(file_path)
+        except Exception as e:
+          print(f"이미지 파일 삭제 실패 ({file_path}): {e}")
   except Exception:
     db.session.rollback()
     return jsonify({'ok':False, 'message':'분석 결과 삭제 중 오류 발생'}), 500
