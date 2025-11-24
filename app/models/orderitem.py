@@ -12,8 +12,8 @@ class OrderItem(db.Model):
   count = db.Column(db.Integer , nullable = False)
   subtotal = db.Column(db.Integer , nullable = False)
   create_at = db.Column(db.DateTime, default = datetime.now, nullable=False)
-  # cart_id = db.Column(db.Integer, db.ForeignKey('carts.id'))
-  # carts = db.relationship('Cart', backref=db.backref('orderitems'))
+  cart_id = db.Column(db.Integer, db.ForeignKey('carts.id', ondelete='SET NULL'))
+  carts = db.relationship('Cart', backref=db.backref('orderitems'))
 
   def __init__(self, unit_price, count, subtotal, goods_id=None, orders_id=None, cart_id=None):
     self.goods_id=goods_id
@@ -21,7 +21,7 @@ class OrderItem(db.Model):
     self.unit_price=unit_price
     self.count=count
     self.subtotal=subtotal
-    # self.cart_id=cart_id
+    self.cart_id=cart_id
 
   def to_dict(self):
     g = self.goods
@@ -44,5 +44,5 @@ class OrderItem(db.Model):
       'count' : self.count,
       'subtotal' : self.subtotal,
       'create_at' : self.create_at,
-      # 'cart_id' : self.cart_id
+      'cart_id' : self.cart_id
     }

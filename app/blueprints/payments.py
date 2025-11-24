@@ -230,9 +230,12 @@ def confirm_payment():
         if user.point < 0:
           user.point = 0
 
-        # 결제 완료 시 cart 테이블 수정 (해당하는 cart id 레코드 삭제)
-        for item in order_items:
-          cart = db.session.query(Cart).filter_by(id=item.cart_id).with_for_update().first()
+        # 결제 완료 시 cart 테이블 수정
+        # 주문 항목에서 NULL이 아닌 고유한 cart_id 목록 추출
+        cart_ids_to_delete = {item.cart_id for item in order_items if item.cart_id is not None}
+        # 목록을 돌며 해당 cart_id 레코드 삭제
+        for cart_id in cart_ids_to_delete:
+          cart = db.session.query(Cart).filter_by(id=cart_id).with_for_update().first()
           if cart:
             db.session.delete(cart)
 
