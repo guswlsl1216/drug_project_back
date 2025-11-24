@@ -589,13 +589,12 @@ def answer_inquiry(id):
   inquiry.answered_at = datetime.now()
 
   try:
-    db.session.commit()
-
     send_inquiry_answer_email(
       to_email=inquiry.email,
       title=inquiry.title,
       answer=answer
     )
+    db.session.commit()
   except Exception:
     db.session.rollback()
     return jsonify({"ok":False, "message": "답변 등록 실패."}), 500

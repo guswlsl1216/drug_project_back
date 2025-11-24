@@ -164,3 +164,23 @@ def goodsReviewInfo(goods_id):
   star_avg = float(round(total / len(reviews), 2))
   info={'length':len(reviews), 'star_avg':star_avg}
   return jsonify({'ok':True, 'info':info})
+
+@bp.get('/myReview')
+def getMyReview():
+  user=db.session.query(User).get(g.user.id)
+  reviews = user.reviews
+  review_list=[]
+  
+  for review in reviews:
+    product=db.session.query(Goods).get(review.goods.id)
+    review_list.append({
+      'id':review.id,
+      'product':review.goods.goods_name,
+      'product_id':review.goods.id,
+      'image':product.image_path,
+      'rating':review.stars,
+      'date':review.create_at,
+      'content':review.content
+    })
+
+  return jsonify({'ok':True, 'reviews':review_list})
