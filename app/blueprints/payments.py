@@ -114,7 +114,7 @@ def save_payment_data():
         unit_price=item.get("unit_price"),
         count=item.get("count"),
         subtotal=item.get("subtotal"),
-        carts_id = item.get("cart_id")
+        cart_id = item.get("cart_id")
       )
       db.session.add(order_item)
 
@@ -132,6 +132,7 @@ def save_payment_data():
     return jsonify({'ok':True, 'message':'결제 요청 정보 및 주문 정보가 저장되었습니다.'}), 200
   except Exception as e:
     db.session.rollback()
+    print(f"주문 정보 DB 저장 중 에러 발생 : {e}")
     return jsonify({'ok':False, 'message':'주문 정보 DB 저장 중 에러가 발생했습니다.'}), 500
 
 # 결제 정보 검증 & 결제 승인
