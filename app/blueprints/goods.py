@@ -36,6 +36,7 @@ def get_goods_list():
 
     raw_category_key = request.args.get('category_key')
     raw_category_value = request.args.get('category_value')
+    raw_goods_name = request.args.get('goods_name')
 
     category_key = unquote(raw_category_key) if raw_category_key else None
     category_value = unquote(raw_category_value) if raw_category_value else None
@@ -44,6 +45,10 @@ def get_goods_list():
     per_page = request.args.get('per_page', 20, type=int)
 
     query = Goods.query
+
+    if raw_goods_name:
+      goods_name_search = unquote(raw_goods_name)
+      query = query.filter(Goods.goods_name.ilike(f"%{goods_name_search}%"))
 
     # 카테고리 필터링 로직
     if category_value and category_value != 'All':
