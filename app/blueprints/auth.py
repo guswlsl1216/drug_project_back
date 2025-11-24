@@ -26,7 +26,7 @@ def signup():
     age = int(age_str) if age_str.isdigit() else None # 숫자가 아니면 None 처리
     gender = data.get('gender')
     address = data.get('address')
-    detailed = data.get('detailed')
+    detail = data.get('detail')
     jibun = data.get('jibun')
     zipcode = data.get('zipcode')
     tel = data.get('tel')
@@ -79,7 +79,7 @@ def signup():
       age=age,
       gender=gender,
       address=address,
-      detailed=detailed,
+      detail=detail,
       jibun=jibun,
       zipcode=zipcode,
       tel=tel,
@@ -140,28 +140,58 @@ def update_user():
   user = current_user
   data = request.get_json()
 
+  if not data :
+    return make_response(ok=False, message="요청 데이터가 없습니다", status=422)
+
   # 수정 가능한 필드
-  allowed_fields = ['nickname', 'email', 'address','detailed','jibun','zipcode','tel','password','age','gender']
+  allowed_fields = ['nickname', 'email', 'address','detail','jibun','zipcode','tel','password','age','gender']
+  
+  # 중복 체크 (변경된 경우에만)
+  email_for_check = None
+  nickname_for_check = None
+
+  # 이메일이 요청에 포함되고, 기존 이메일과 다를 때만 검사
+  if 'email' in data and data['email'] != user.email:
+      email_for_check = data['email']
+
+  # 닉네임이 요청에 포함되고, 기존 닉네임과 다를 때만 검사
+  if 'nickname' in data and data['nickname'] != user.nickname:
+      nickname_for_check = data['nickname']
+
+  errors = is_unique_user(
+      email=email_for_check,
+      nickname=nickname_for_check,
+      username=user.username
+  )
+
+  if errors:
+    return make_response(ok=False, message="중복 된 정보가 있습니다.", status=400)
+  
+  update = False
+
   for filed in allowed_fields:
-    if filed in data and data[filed]:
+    if filed in data and data[filed] not in [None,""]:
       if filed == 'password':
         user.set_password(data[filed]) # 비밀번호 변경 시 hash
+      elif filed == "age":
+        try:
+          user.age = int(data[filed])
+        except ValueError:
+          return make_response(ok=False, message="나이는 숫자만 입력 가능합니다.", status=400)
       else:
         setattr(user, filed, data[filed])
+      update = True
+  if not update :
+    return make_response(ok=False, message="수정 할 내용이 없습니다.", status=400)
 
-    # 중복 체크 (email,nickname 등)
-    errors = is_unique_user(email=data.get('email'), nickname=data.get('nickname'), username=user.username)
-    if errors : 
-      return make_response(ok=False, message="중복 된 정보가 있습니다.", status=400)
-    
-    result = safe_commit({
-      'email':'이미 등록 된 이메일입니다.',
-      'nickname':'이미 사용 중인 닉네임입니다.'
-    })
+  result = safe_commit({
+    'email':'이미 등록 된 이메일입니다.',
+    'nickname':'이미 사용 중인 닉네임입니다.'
+  })
 
-    if not result['ok']:
-      return make_response(ok=False, message=result['message'], status=400)
+  if not result['ok']:
+    return make_response(ok=False, message=result['message'], status=400)
 
-  return make_response(ok=False, message="회원 정보가 업데이트 되었씁니다.", data=user.to_dict())
+  return make_response(ok=True, message="회원 정보가 업데이트 되었습니다.", data=user.to_dict())
 
   

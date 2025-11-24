@@ -51,7 +51,7 @@ def save_address():
   
   user.zipcode = zipcode
   user.address = address
-  user.detailed_address = address_detail
+  user.detail = address_detail
 
   try:
     db.session.commit()
