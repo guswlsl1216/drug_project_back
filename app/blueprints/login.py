@@ -52,6 +52,7 @@ def login():
     user_info = {
       "id":user.id,
       "nickname":user.nickname,
+      "username":user.username,
       "email":user.email,
       "tel":user.tel,
       "role": user.role  
@@ -108,6 +109,7 @@ def login_check():
     
     user_info = {
       "id":user.id,
+      "username":user.username,
       "nickname":user.nickname,
       "email":user.email,
       "tel":user.tel,
@@ -134,3 +136,13 @@ def logout():
       }), 500
     )
     
+
+@bp.post("/test")
+@jwt_required()
+def test():
+  print("12")
+  return make_response(
+    ok=True,
+    message='test 완료',
+    status=200
+  )
