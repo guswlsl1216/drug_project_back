@@ -34,3 +34,17 @@ class Config:
   MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
   MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', MAIL_USERNAME)
 
+  # Flask-APScheduler 설정
+  SCHEDULER_API_ENABLED = True
+  SCHEDULER_JOBSTORES = {
+    'default': {
+      'type': 'memory' # 스케줄링 정보를 메모리에 저장
+    }
+  }
+  # 작업 등록 시 충돌 방지 설
+  SCHEDULER_EXECUTORS = {
+    'default': {
+      'type': 'threadpool', 
+      'max_workers': 20
+    }
+  }
