@@ -75,7 +75,7 @@ class User(db.Model, UserMixin):
       'gender':self.gender,
       'zipcode':self.zipcode,
       'address':self.address,
-      'detailed_address':self.detailed_address,
+      'detail':self.detail,
       'role':self.role,
       'point':self.point,
       'tel':self.tel,
