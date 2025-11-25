@@ -18,7 +18,6 @@ def signup():
     print("📦 request data:", data)
 
     username = data.get('username')
-    point = data.get('point')
     password = data.get('password')
     nickname = data.get('nickname')
     email = data.get('email')
@@ -73,7 +72,6 @@ def signup():
     # 모델에 만들어 둔 User를 가져와서 여기서 사용 할 user에 넣어줌
     user = User(
       username=username, 
-      point=point,
       email=email, 
       nickname=nickname,
       created_at=created_at,

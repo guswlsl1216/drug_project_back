@@ -5,6 +5,7 @@ from flask_mail import Mail
 from .extensions import db, migrate, login_manager, cors, jwt
 from .config import Config
 from flask_apscheduler import APScheduler
+from sqlalchemy import and_
 
 mail = Mail()
 scheduler = APScheduler()
@@ -15,7 +16,7 @@ def daily_cleanup(app):
   """
   with app.app_context():
     temp_dir = os.path.join(current_app.root_path, 'static', 'temp')
-
+      
     if not os.path.exists(temp_dir):
       print(f"[{datetime.datetime.now()}] 임시 이미지 폴더가 존재하지 않아 정리 건너뜀.")
       return
@@ -39,6 +40,23 @@ def daily_cleanup(app):
 
     print(f"[{datetime.datetime.now()}] 임시 폴더 정리 완료. 삭제된 파일 수: {deleted_count}개")
 
+def delete_users():
+  """
+  30일 지난 탈퇴 유저를 DB에서 완전히 삭제
+  """
+  with current_app.app_context(): # DB 접근을 위해 필요
+    from .models.user import User 
+
+    cutoff = datetime.now() - datetime.timedelta(days=30)
+    users_delete = User.query.filter(and_(User.deleted_at.isnot(None),User.deleted_at <= cutoff)).all()
+
+    for user in users_delete:
+      try:
+        user.hard_delete()
+        print(f"[{datetime.datetime.now()}] 유저 {user.username} 삭제 완료")
+      except Exception as e:
+        print(f"[{datetime.datetime.now()}] 유저 {user.username} 삭제 실패: {e}")
+
 def create_app():
   app = Flask(__name__)
   app.config.from_object(Config)
@@ -58,6 +76,7 @@ def create_app():
   login_manager.init_app(app)
   mail.init_app(app)
   scheduler.init_app(app)
+
 
   @jwt.unauthorized_loader
   def handle_missing_or_invalid_token(err):
@@ -130,6 +149,16 @@ def create_app():
   if not scheduler.running:
     scheduler.start()
   
+  if not scheduler.get_job('delete_users'):
+    scheduler.add_job(
+      id='delete_users',
+      func=delete_users,
+      trigger='cron',
+      hour=0, # 매일 자정 실행
+      minute=0,
+      replace_existing=True
+    )
+
   # temp 파일 삭제 스케줄러 등록
   # 현재 기준 : 오전 9시 40분 실행
   if not scheduler.get_job('temp_cleanup_job'):
