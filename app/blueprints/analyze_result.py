@@ -13,7 +13,7 @@ from ..models.analyze_result import Analyze_result
 from ultralytics import YOLO
 import io
 from PIL import Image
-import os, json, uuid
+import os, shutil
 
 # analyze_result.py가 위치한 폴더의 경로 (drug_project_back/app/blueprints)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -163,18 +163,11 @@ def get_drug_info(product_id):
 @bp.post('/save')
 @jwt_required()
 def save_result():
+  data = request.get_json()
+  result = data['result']
+  temp_url = data['temp_image_url']
   user = get_current_user()
   user_id = user.id
-
-  img_file = request.files.get('file') or None
-  result_json_string = request.form.get('result')
-  if result_json_string is None:
-    return jsonify({'ok':False, 'message':'분석 결과가 전송되지 않았습니다.'}), 400
-  
-  try:
-    result = json.loads(result_json_string) 
-  except json.JSONDecodeError:
-    return {"error": "result_data JSON 파싱 오류."}, 400
   
   # 중복 저장 방지
   if Analyze_result.query.filter_by(
@@ -183,35 +176,42 @@ def save_result():
   ).first():
     return jsonify({'ok': False, 'message': '이미 저장된 분석 결과입니다.'}), 400
   
-  if img_file:
-    unique_filename = str(uuid.uuid4())
-    file_extension = img_file.filename.rsplit('.', 1)[1].lower() if '.' in img_file.filename else 'png'
-    final_filename = f"{unique_filename}.{file_extension}"
+  final_public_url = None
+  original_file_path = None
+  
+  if temp_url:
+    original_file_path = os.path.join(current_app.root_path, temp_url.lstrip('/'))
 
-    save_dir = os.path.join(current_app.root_path, 'static', 'analyze')
+    filename = os.path.basename(original_file_path)
 
-    if not os.path.exists(save_dir):
-      os.makedirs(save_dir)
+    move_subdir = current_app.config.get("UPLOAD_ANALYZE", "analyze")
+    move_dir = os.path.join(current_app.root_path, 'static', move_subdir)
 
-    save_path = os.path.join(save_dir, final_filename)
+    if not os.path.exists(move_dir):
+      os.makedirs(move_dir)
+
+    move_path = os.path.join(move_dir, filename)
+    final_public_url = f'/static/analyze/{filename}'
 
     try:
-      img_file.save(save_path)
-      public_url = f'/static/analyze/{final_filename}'
-      result['image_url'] = public_url
+      shutil.move(original_file_path, move_path)
+      result['image_url'] = final_public_url
+    except FileNotFoundError:
+      print(f"이미지 파일 ({original_file_path})을 찾을 수 없습니다. 이미 삭제되었거나 경로 오류.")
+      return jsonify({'ok': False, 'message': '업로드한 이미지에 문제가 발생했습니다.'}), 404
     except Exception as e:
-      print(f"이미지 저장 중 오류 발생: {e}")
+      print(f"이미지 이동 중 오류 발생: {e}")
       return jsonify({'ok': False, 'message': '이미지 저장 중 오류가 발생했습니다.'}), 500
   
   result_model = Analyze_result(**result, user_id=user_id)
-
   db.session.add(result_model)
 
   try:
     db.session.commit()
   except Exception:
     db.session.rollback()
-    os.remove(save_path)
+    if final_public_url:
+      os.remove(move_path)
     return jsonify({'ok':False, 'message':'분석 결과 저장 중 오류 발생'}), 400
   
   return jsonify({
