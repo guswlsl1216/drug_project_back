@@ -1,10 +1,11 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from app import db
 from flask_login import current_user, login_required
 from ..models.auto import get_class
 from sqlalchemy import or_, func
 import uuid
 import random
+import os
 from ..utils.process_ingredients import process_ingredients
 
 bp = Blueprint('aiAnalyze', __name__)
@@ -391,3 +392,31 @@ def analyze_result():
     print(response)
 
     return jsonify(response)
+
+
+# 분석 요청한 의약품 이미지 임시 저장
+@bp.post("/images/temp")
+def image_temp():
+    img_file = request.files.get('file') or None
+
+    if img_file:
+        unique_filename = str(uuid.uuid4())
+        file_extension = img_file.filename.rsplit('.', 1)[1].lower() if '.' in img_file.filename else 'png'
+        final_filename = f"{unique_filename}.{file_extension}"
+
+        save_subdir = current_app.config.get("UPLOAD_TEMP", "temp")
+        save_dir = os.path.join(current_app.root_path, 'static', save_subdir)
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    save_path = os.path.join(save_dir, final_filename)
+
+    try:
+        img_file.save(save_path)
+        public_url = f'/static/temp/{final_filename}'
+        return jsonify({'ok': True, 'message': '이미지가 임시 저장되었습니다.', 'image_url': public_url}), 200
+    except Exception as e:
+        print(f"이미지 저장 중 오류 발생: {e}")
+        return jsonify({'ok': False, 'message': '이미지 저장 중 오류가 발생했습니다.'}), 500
+    

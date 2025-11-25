@@ -135,7 +135,7 @@ def updateReview(reviewId):
     
     image=request.files.get('image')
     print(image)
-    image_path = current_review.review_image
+    image_path = ''
     if image:
       if allowed_file(image.filename):
         image_path = change_path(image)
