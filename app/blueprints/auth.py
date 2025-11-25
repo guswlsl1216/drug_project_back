@@ -18,6 +18,7 @@ def signup():
     print("📦 request data:", data)
 
     username = data.get('username')
+    point = data.get('point')
     password = data.get('password')
     nickname = data.get('nickname')
     email = data.get('email')
@@ -27,7 +28,6 @@ def signup():
     gender = data.get('gender')
     address = data.get('address')
     detail = data.get('detail')
-    jibun = data.get('jibun')
     zipcode = data.get('zipcode')
     tel = data.get('tel')
     role = data.get('role')
@@ -73,6 +73,7 @@ def signup():
     # 모델에 만들어 둔 User를 가져와서 여기서 사용 할 user에 넣어줌
     user = User(
       username=username, 
+      point=point,
       email=email, 
       nickname=nickname,
       created_at=created_at,
@@ -80,7 +81,6 @@ def signup():
       gender=gender,
       address=address,
       detail=detail,
-      jibun=jibun,
       zipcode=zipcode,
       tel=tel,
       role=role
@@ -133,6 +133,19 @@ def verify_password():
   
   else:
     return make_response(ok=False, message="비밀번호가 일치하지 않습니다.", status=401)
+  
+@bp.get('/<int:id>')
+@jwt_required()
+def info(id):
+  user = current_user
+
+  if user.id != id:
+    return make_response(ok=False, message="본인의 정보만 조회할 수 있습니다.", status=403)
+  
+  return make_response(ok=True, message="조회 성공", status=200, data=user.to_dict())
+
+  
+  
 
 @bp.post('/user')
 @jwt_required()
@@ -144,7 +157,7 @@ def update_user():
     return make_response(ok=False, message="요청 데이터가 없습니다", status=422)
 
   # 수정 가능한 필드
-  allowed_fields = ['nickname', 'email', 'address','detail','jibun','zipcode','tel','password','age','gender']
+  allowed_fields = ['nickname', 'email', 'address','detail','zipcode','tel','password','age','gender']
   
   # 중복 체크 (변경된 경우에만)
   email_for_check = None
@@ -161,7 +174,7 @@ def update_user():
   errors = is_unique_user(
       email=email_for_check,
       nickname=nickname_for_check,
-      username=user.username
+      username=''
   )
 
   if errors:
@@ -193,5 +206,16 @@ def update_user():
     return make_response(ok=False, message=result['message'], status=400)
 
   return make_response(ok=True, message="회원 정보가 업데이트 되었습니다.", data=user.to_dict())
+
+@bp.post("/withdraw")
+@jwt_required()
+def withdraw():
+  user = current_user
+
+  if user.deleted_at:
+    return make_response(ok=False, message="이미 탈퇴 요청한 계정입니다.", status=400)
+  
+  user.soft_delete()
+  return make_response(ok=True, message="탈퇴 요청이 접수되었습니다.")
 
   
