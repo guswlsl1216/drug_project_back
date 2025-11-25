@@ -5,6 +5,8 @@ from ..models.user import User
 from ..utils.db_helpers import safe_commit
 from ..utils.response import make_response
 from ..utils.validators import validate_email, validate_password, is_unique_user
+from flask_jwt_extended import jwt_required, current_user
+from ..utils.services_auth import authenticate_user
 
 bp = Blueprint('auth',__name__)
 
@@ -24,7 +26,9 @@ def signup():
     age = int(age_str) if age_str.isdigit() else None # 숫자가 아니면 None 처리
     gender = data.get('gender')
     address = data.get('address')
-    detailed_address = data.get('detailed_address')
+    detailed = data.get('detailed')
+    jibun = data.get('jibun')
+    zipcode = data.get('zipcode')
     tel = data.get('tel')
     role = data.get('role')
 
@@ -75,7 +79,9 @@ def signup():
       age=age,
       gender=gender,
       address=address,
-      detailed_address=detailed_address,
+      detailed=detailed,
+      jibun=jibun,
+      zipcode=zipcode,
       tel=tel,
       role=role
     )
@@ -110,4 +116,52 @@ def signup():
       status=500
     )
   
+# 회원 비밀번호 재 확인
+@bp.post('/user/verify-password')
+@jwt_required()
+def verify_password():
+  user = current_user
+  data = request.get_json()
+  password = data.get('password')
+
+  if not password:
+    return make_response(ok=False, message="비밀번호를 입력해주세요.", status=400)
+  
+  if user.check_password(password):
+    
+    return make_response(ok=True, message="비밀번호 확인 완료", status=200)
+  
+  else:
+    return make_response(ok=False, message="비밀번호가 일치하지 않습니다.", status=401)
+
+@bp.post('/user')
+@jwt_required()
+def update_user():
+  user = current_user
+  data = request.get_json()
+
+  # 수정 가능한 필드
+  allowed_fields = ['nickname', 'email', 'address','detailed','jibun','zipcode','tel','password','age','gender']
+  for filed in allowed_fields:
+    if filed in data and data[filed]:
+      if filed == 'password':
+        user.set_password(data[filed]) # 비밀번호 변경 시 hash
+      else:
+        setattr(user, filed, data[filed])
+
+    # 중복 체크 (email,nickname 등)
+    errors = is_unique_user(email=data.get('email'), nickname=data.get('nickname'), username=user.username)
+    if errors : 
+      return make_response(ok=False, message="중복 된 정보가 있습니다.", status=400)
+    
+    result = safe_commit({
+      'email':'이미 등록 된 이메일입니다.',
+      'nickname':'이미 사용 중인 닉네임입니다.'
+    })
+
+    if not result['ok']:
+      return make_response(ok=False, message=result['message'], status=400)
+
+  return make_response(ok=False, message="회원 정보가 업데이트 되었씁니다.", data=user.to_dict())
+
   

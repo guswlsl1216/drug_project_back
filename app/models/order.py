@@ -21,6 +21,7 @@ class Order(db.Model):
   zipcode = db.Column(db.String(10), nullable=False)
   address = db.Column(db.String(255), nullable=False)
   address_detail = db.Column(db.String(255), nullable=False)
+  address_extra = db.Column(db.String(255), nullable=True)
   receiver = db.Column(db.String(50), nullable=False)
   phone = db.Column(db.String(20), nullable=False)
   payments = db.relationship('Payment', back_populates='orders', cascade='all, delete-orphan')
@@ -28,7 +29,7 @@ class Order(db.Model):
   update_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
   order_code = db.Column(db.String(50), nullable=False, unique=True) 
 
-  def __init__(self, items_total, shipping_fee, used_points, saved_points, final_amount, total_count, status, zipcode, address, address_detail, receiver,  phone, order_code, user_id=None):
+  def __init__(self, items_total, shipping_fee, used_points, saved_points, final_amount, total_count, status, zipcode, address, address_detail, address_extra, receiver,  phone, order_code, user_id=None):
     self.items_total=items_total
     self.shipping_fee=shipping_fee
     self.used_points=used_points
@@ -39,6 +40,7 @@ class Order(db.Model):
     self.zipcode=zipcode
     self.address=address
     self.address_detail=address_detail
+    self.address_extra = address_extra
     self.receiver=receiver
     self.phone=phone
     self.order_code=order_code
@@ -62,6 +64,7 @@ class Order(db.Model):
       'zipcode' : self.zipcode,
       'address' : self.address,
       'address_detail' : self.address_detail,
+      'address_extra': self.address_extra,
       'receiver' : self.receiver,
       'phone' : self.phone,
       'payment_at' : self.payment_at,

@@ -10,7 +10,7 @@ from app.models.user_meds import User_meds
 from sqlalchemy import func
 from app.models.auto import get_class
 from ..models.user import User
-from datetime import date
+from datetime import date, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
@@ -39,21 +39,35 @@ def before_api_request():
 
 def init_scheduler(app):
   scheduler = BackgroundScheduler()
-  today = datetime.now()
+  today = (datetime.now() - timedelta(days=1)).date()
   def accumulate():
     with app.app_context():
       users = db.session.query(User).all()
-      print('-------------포인트 정산-------------')
-      
       for user in users:
+        flag = 0
+        if not user.routine:
+          point = 0
         for routine in user.routine:
           if routine.start_date<=today and routine.end_date>=today:
-            print(user.username,':',routine)
-        # routine_ids = [routine.id for routine in user.routine]
-        # routines = db.session.query(Routine).filter(Routine.id.in_(routine_ids),Routine.start_date<=today,Routine.end_date>=today).all()  
+            flag = 1
+            point = 10
+            print('-------------포인트 정산-------------')
+            print(user.nickname,':',routine)
+            routine_log=db.session.query(Routine_log).filter(Routine_log.routine_id==routine.id, Routine_log.date==today).first() 
+            if not routine_log or routine_log.count != 'good':
+              print('------!!!수행되지않은 루틴!!!-------')
+              point = 0
+              break
+          elif flag==0:
+            point = 0
+        print(user.nickname,':',point,'점 추가')
+        user.point+=point   
+        db.session.add(user)
+        db.session.commit()
+            
       print('-------------포인트 정산완료-------------')
-      pass
-  scheduler.add_job(func=accumulate, trigger="cron", hour=17, minute=18)
+      
+  scheduler.add_job(func=accumulate, trigger="cron", hour=0, minute=0)
   scheduler.start()
   # 애플리케이션 종료 시 스케줄러도 종료
   atexit.register(lambda: scheduler.shutdown())
