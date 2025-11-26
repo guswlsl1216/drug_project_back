@@ -24,12 +24,19 @@ class Order(db.Model):
   address_extra = db.Column(db.String(255), nullable=True)
   receiver = db.Column(db.String(50), nullable=False)
   phone = db.Column(db.String(20), nullable=False)
+  delivery_message = db.Column(db.String(255), nullable=True)
   payments = db.relationship('Payment', back_populates='orders', cascade='all, delete-orphan')
   payment_at = db.Column(db.DateTime, default=datetime.now, nullable=True)
   update_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
   order_code = db.Column(db.String(50), nullable=False, unique=True) 
+  # 이 주문으로 인한 포인트 변동 내역
+  point_histories = db.relationship(
+    "PointHistory",
+    back_populates="order",
+    cascade="all, delete-orphan"
+  )
 
-  def __init__(self, items_total, shipping_fee, used_points, saved_points, final_amount, total_count, status, zipcode, address, address_detail, address_extra, receiver,  phone, order_code, user_id=None):
+  def __init__(self, items_total, shipping_fee, used_points, saved_points, final_amount, total_count, status, zipcode, address, address_detail, address_extra, receiver,  phone, order_code, user_id=None, delivery_message=None):
     self.items_total=items_total
     self.shipping_fee=shipping_fee
     self.used_points=used_points
@@ -43,6 +50,7 @@ class Order(db.Model):
     self.address_extra = address_extra
     self.receiver=receiver
     self.phone=phone
+    self.delivery_message = delivery_message
     self.order_code=order_code
     self.user_id = user_id
 
@@ -67,6 +75,7 @@ class Order(db.Model):
       'address_extra': self.address_extra,
       'receiver' : self.receiver,
       'phone' : self.phone,
+      'delivery_message': self.delivery_message,
       'payment_at' : self.payment_at,
       'update_at' : self.update_at,
       'order_code' : self.order_code,

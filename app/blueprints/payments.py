@@ -100,6 +100,7 @@ def save_payment_data():
       address_extra=order_data.get("address_extra", ""),  
       receiver=order_data.get("receiver"),
       phone=order_data.get("phone"),
+      delivery_message=order_data.get("delivery_message") or None, 
       order_code = order_id
     ) 
 
@@ -122,7 +123,7 @@ def save_payment_data():
     saveAddress = data.get('saveAddress')
     if saveAddress:
       user.address = order_data.get("address")
-      user.detailed_address=order_data.get("address_detail")
+      user.detail=order_data.get("address_detail")
       user.zipcode=order_data.get("zipcode")
 
       if not user.tel:

@@ -32,35 +32,6 @@ def order_user_me():
     "user" : user.to_dict()
   }), 200
 
-# 기본 배송지 저장하는 라우트
-@bp.post("/save")
-@jwt_required()
-def save_address():
-  user_id = get_current_user()
-
-  data = request.get_json()
-
-  zipcode = data.get("zipcode", "")
-  address = data.get("address", "")
-  address_detail = data.get("address_detail", "")
-
-  user = db.session.query(User).get(int(user_id))
-
-  if not user:
-    return jsonify({"ok": False, "message": "사용자를 찾을 수 없습니다."}), 404
-  
-  user.zipcode = zipcode
-  user.address = address
-  user.detailed_address = address_detail
-
-  try:
-    db.session.commit()
-  except Exception as e:
-    db.session.rollback()
-    return jsonify({"ok": False, "message": f"배송지 저장 실패: {e}"}), 500
-
-  return jsonify({"ok": True}), 200
-
 # 내 주문 목록
 @bp.get("/me")
 @jwt_required()
