@@ -5,7 +5,7 @@ from ..models.user import User
 from ..utils.db_helpers import safe_commit
 from ..utils.response import make_response
 from ..utils.validators import validate_email, validate_password, is_unique_user
-from flask_jwt_extended import jwt_required, current_user
+from flask_jwt_extended import jwt_required, current_user, unset_jwt_cookies
 from ..utils.services_auth import authenticate_user
 
 bp = Blueprint('auth',__name__)
@@ -205,15 +205,17 @@ def update_user():
 
   return make_response(ok=True, message="회원 정보가 업데이트 되었습니다.", data=user.to_dict())
 
-@bp.post("/withdraw")
+@bp.delete("/delete")
 @jwt_required()
-def withdraw():
+def delete():
   user = current_user
 
-  if user.deleted_at:
-    return make_response(ok=False, message="이미 탈퇴 요청한 계정입니다.", status=400)
-  
-  user.soft_delete()
-  return make_response(ok=True, message="탈퇴 요청이 접수되었습니다.")
+  db.session.delete(user)
+  db.session.commit()
+
+  response = make_response(ok=True, message="회원 정보가 삭제되었습니다.")
+  unset_jwt_cookies(response)
+
+  return response
 
   
