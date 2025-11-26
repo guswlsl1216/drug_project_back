@@ -209,8 +209,9 @@ def search_meds():
 
 # --- API 엔드포인트: 분석 결과 요청 ---
 
-@bp.post('/analyze/result')
+@bp.route('/analyze/result', methods=['POST'])
 def analyze_result():
+    
     data = request.get_json(silent=True)
     if data is None:
         return jsonify({
