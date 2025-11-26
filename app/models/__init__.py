@@ -15,4 +15,3 @@ from . import order
 from . import orderitem
 from . import supps_products
 from . import inquiry
-
