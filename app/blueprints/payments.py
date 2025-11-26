@@ -8,6 +8,7 @@ from ..models.orderitem import OrderItem
 from ..models.payment import Payment
 from ..models.goods import Goods
 from ..models.cart import Cart
+from ..models.pointHistory import PointHistory, PointTypeEnum
 
 bp = Blueprint('payments', __name__)
 original_string = Config.WIDGET_SECRET_KEY + ":"
@@ -80,9 +81,10 @@ def save_payment_data():
       if not user or (user.point or 0) < used_points:
         return jsonify({"ok" : False, "message" : "보유 적립금이 부족합니다."}), 400
     
-    saved_points = ( items_total - used_points ) * 0.01
-    if saved_points < 0:
-      saved_points = 0
+    raw_points = ( items_total - used_points ) * 0.01
+    if raw_points < 0:
+      raw_points = 0
+    saved_points = int(raw_points)
 
     # 주문 테이블 저장
     order = Order(
@@ -228,10 +230,42 @@ def confirm_payment():
           else:
             goods.stock = updated_stock
 
-        # 결제 완료 시 포인트 차감 및 적립
-        user.point = user.point - order.used_points + order.saved_points
-        if user.point < 0:
-          user.point = 0
+        current_balance = user.point or 0
+        # 사용포인트 히스토리
+        if (order.used_points or 0) > 0:
+          after_use_balance = current_balance - order.used_points
+          if after_use_balance < 0:
+            after_use_balance = 0
+
+          use_history = PointHistory(
+            user_id = user.id,
+            order_id=order.id,
+            amount = -order.used_points,
+            balance_after = after_use_balance,
+            type = PointTypeEnum.USE,
+            description = f"주문 {order.order_code} 결제 시 포인트 사용"
+          )
+
+          db.session.add(use_history)
+          current_balance = after_use_balance
+        
+        # 적립 포인트 히스토리
+        saved_points = int(order.saved_points or 0)
+        if saved_points > 0:
+          after_earn_balance = current_balance + saved_points
+
+          earn_history = PointHistory(
+            user_id = user.id,
+            order_id = order.id,
+            amount = saved_points,  # 적립은 양수
+            balance_after = after_earn_balance,
+            type = PointTypeEnum.EARN,
+            description = f"주문 {order.order_code} 결제 시 포인트 적립"
+          )
+          db.session.add(earn_history)
+          current_balance = after_earn_balance
+        
+        user.point = current_balance
 
         # 결제 완료 시 cart 테이블 수정
         # 주문 항목에서 NULL이 아닌 고유한 cart_id 목록 추출

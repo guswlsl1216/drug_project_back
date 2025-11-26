@@ -95,6 +95,7 @@ def orders_list():
     db.session.query(Order)
     .options(joinedload(Order.orderitems).joinedload(OrderItem.goods)) # 상품명 검색 위해 joinload 
     .filter(Order.user_id == user_id)
+    .filter(Order.update_at.isnot(None))     # 결제 완료된 주문만
   )
 
   if start_dt:
@@ -177,22 +178,34 @@ def get_order_addresses():
       .all()
   )
 
+  def norm(value: str | None) -> str:
+    # None → "", 앞뒤 공백 제거
+    return (value or "").strip()
+
   seen = set()
   addresses = []
 
   for o in orders:
-    key = (o.receiver, o.phone, o.zipcode, o.address, o.address_detail, o.address_extra)
+    key = (
+      norm(o.receiver),
+      norm(o.phone),
+      norm(o.zipcode),
+      norm(o.address),
+      norm(o.address_detail),
+      norm(o.address_extra),
+    )
+    print("KEY:", repr(key))
     if key in seen:
       continue
     seen.add(key)
 
     addresses.append({
-      "receiver": o.receiver,
-      "phone" : o.phone,
-      "zipcode" : o.zipcode,
-      "address" : o.address,
-      "address_detail" : o.address_detail,
-      "address_extra": o.address_extra or ""
+      "receiver": key[0],
+      "phone" : key[1],
+      "zipcode" : key[2],
+      "address" : key[3],
+      "address_detail" : key[4],
+      "address_extra": key[5]
     })
 
     if len(addresses) >= 10:  # 최대 10개 정도만

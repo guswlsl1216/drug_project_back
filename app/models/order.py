@@ -92,3 +92,21 @@ class Order(db.Model):
         for item in self.orderitems # type: ignore[attr-defined]
       ]
     }
+  
+  def to_summary_dict(self):
+    items = list(self.orderitems) # type: ignore[attr-defined]
+    main_item = items[0] if items else None
+    extra_count = max(len(items) - 1, 0)
+
+    return {
+        "id": self.id,
+        "order_code": self.order_code,
+        "final_amount": self.final_amount,
+        "total_count": self.total_count,
+        "payment_at": self.payment_at,
+        "main_item": {
+            "goods_name": getattr(main_item.goods, "goods_name", None) if main_item else None,
+            "image": getattr(main_item.goods, "image_path", None) if main_item else None,
+        } if main_item else None,
+        "extra_count": extra_count,
+    }

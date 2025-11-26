@@ -39,7 +39,7 @@ class PointHistory(db.Model):
       'id' : self.id,
       'user' : {
         'id' : self.user_id,
-        'nickname': getattr(u, 'nickname', None),
+        'nickname': getattr(u, 'nickname', None)
       },
       "amount" : self.amount,
       "balance_after" : self.balance_after,
