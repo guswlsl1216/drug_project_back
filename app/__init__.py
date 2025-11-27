@@ -131,14 +131,14 @@ def create_app():
     scheduler.start()
   
   # temp 파일 삭제 스케줄러 등록
-  # 현재 기준 : 오전 9시 40분 실행
+  # 현재 기준 : 자정 실행
   if not scheduler.get_job('temp_cleanup_job'):
     scheduler.add_job(
       id='temp_cleanup_job',
       func=daily_cleanup,
       trigger='cron',
-      hour=9,
-      minute=40,
+      hour=0,
+      minute=0,
       args=[app],
       replace_existing=True
     )
