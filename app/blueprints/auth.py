@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from flask import make_response as flask_make_response
 from email_validator import validate_email, EmailNotValidError
 from ..extensions import db
 from ..models.user import User
@@ -213,7 +214,11 @@ def delete():
   db.session.delete(user)
   db.session.commit()
 
-  response = make_response(ok=True, message="회원 정보가 삭제되었습니다.")
+  response = flask_make_response(jsonify({
+    "ok":True,
+    "message": "탈퇴 완료",
+    "data" : None
+  }), 200)
   unset_jwt_cookies(response)
 
   return response
