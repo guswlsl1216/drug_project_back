@@ -165,7 +165,8 @@ def confirm_payment():
         'message':'이미 처리된 주문입니다.',
         'order_items': serialized_items,
         'final_amount': order.final_amount,
-        'order_code': order.order_code
+        'order_code': order.order_code,
+        'order_id': order.id
         }), 200
 
     if order_id != session.get('pre_payment_order_id') or amount != session.get('pre_payment_amount'):
@@ -248,7 +249,8 @@ def confirm_payment():
               'message':'결제 승인이 완료되었습니다.',
               'order_items': serialized_items,
               'final_amount': order.final_amount,
-              'order_code': order.order_code
+              'order_code': order.order_code,
+              'order_id': order.id
             }), 200
         except Exception as e:
           db.session.rollback()
