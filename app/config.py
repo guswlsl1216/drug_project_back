@@ -24,7 +24,7 @@ class Config:
   # SESSION_COOKIE_SAMESITE = 'None'
   SESSION_COOKIE_SECURE = False
 
-  # 토스 결제 시크릿 키 : 원래는 외부 공유 금지, 지금은 테스트용
+  # 토스 결제 시크릿 키
   WIDGET_SECRET_KEY = os.environ.get('WIDGET_SECRET_KEY')
 
   MAIL_SERVER = os.environ.get('MAIL_SERVER')
