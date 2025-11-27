@@ -55,7 +55,7 @@ def login():
       "username":user.username,
       "email":user.email,
       "tel":user.tel,
-      "role": user.role  
+      "role": user.role
     }
     
     res = flask_make_response(jsonify({
@@ -113,7 +113,7 @@ def login_check():
       "nickname":user.nickname,
       "email":user.email,
       "tel":user.tel,
-      "role": user.role  
+      "role": user.role
     }
 
     return jsonify(logged_in=True, user=user_info)
