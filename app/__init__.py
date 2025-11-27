@@ -122,7 +122,7 @@ def create_app():
   from .blueprints.order import bp as order_bp
   from .blueprints.inquiry import bp as inquiry_bp
   from .blueprints.qna import bp as qna_bp
-
+  from .blueprints.mypage import bp as mypage_bp
   
 
 
@@ -143,7 +143,7 @@ def create_app():
   app.register_blueprint(order_bp, url_prefix='/orders')
   app.register_blueprint(inquiry_bp, url_prefix='/inquiry')
   app.register_blueprint(qna_bp, url_prefix='/qna')
-
+  app.register_blueprint(mypage_bp, url_prefix='/mypage')
 
   # 스케줄러 시작
   if not scheduler.running:
@@ -160,14 +160,14 @@ def create_app():
     )
 
   # temp 파일 삭제 스케줄러 등록
-  # 현재 기준 : 오전 9시 40분 실행
+  # 현재 기준 : 자정 실행
   if not scheduler.get_job('temp_cleanup_job'):
     scheduler.add_job(
       id='temp_cleanup_job',
       func=daily_cleanup,
       trigger='cron',
-      hour=9,
-      minute=40,
+      hour=0,
+      minute=0,
       args=[app],
       replace_existing=True
     )

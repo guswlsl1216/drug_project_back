@@ -14,6 +14,7 @@ from datetime import date, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+from ..models.pointHistory import PointHistory, PointTypeEnum
 
 bp = Blueprint('routine', __name__)
 SP = get_class("supps_products") 
@@ -39,8 +40,8 @@ def before_api_request():
 
 def init_scheduler(app):
   scheduler = BackgroundScheduler()
-  today = (datetime.now() - timedelta(days=1)).date()
   def accumulate():
+    today = (datetime.now() - timedelta(days=1)).date()
     with app.app_context():
       users = db.session.query(User).all()
       for user in users:
@@ -61,9 +62,24 @@ def init_scheduler(app):
           elif flag==0:
             point = 0
         print(user.nickname,':',point,'점 추가')
-        user.point+=point   
+
+        if point > 0:
+          current_balance = user.point or 0
+          new_balance = current_balance + point
+
+          history = PointHistory(
+            user_id = user.id,
+            amount = point,                 # 루틴 포인트는 적립이니까 양수
+            balance_after = new_balance,    # 이 적립 이후의 최종 잔액
+            type = PointTypeEnum.EARN,      # 적립 타입
+            description = f"{today} 루틴 달성 포인트",
+            routine_date = today    
+          )
+          db.session.add(history)
+          user.point = new_balance
+        
         db.session.add(user)
-        db.session.commit()
+      db.session.commit()
             
       print('-------------포인트 정산완료-------------')
       
