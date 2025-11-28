@@ -1,6 +1,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/flask,python,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=flask,python,windows
 
+### model ###
+runs/detect/train/weights/finetuned_model_final.pt
+
 ### Flask ###
 instance/*
 !instance/.gitignore

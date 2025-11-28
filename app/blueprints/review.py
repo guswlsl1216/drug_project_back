@@ -11,8 +11,94 @@ from ..models.goods import Goods
 from werkzeug.utils import secure_filename
 from ..extensions import tokenizer, model
 import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 bp = Blueprint('review', __name__)
+
+_toxic_model = None
+_toxic_tokenizer = None
+_toxic_device = None
+
+# ========== 모델 로드 함수 ==========
+def load_toxic_model():
+    """악플 탐지 모델 로드 (서버 시작 시 1번만)"""
+    global _toxic_model, _toxic_tokenizer, _toxic_device
+    
+    if _toxic_model is not None:
+        return  # 이미 로드됨
+    
+    print("🔧 악플 탐지 모델 로딩 중...")
+    
+    try:
+        _toxic_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        _toxic_tokenizer = AutoTokenizer.from_pretrained("beomi/kcELECTRA-base")
+        
+        _toxic_model = AutoModelForSequenceClassification.from_pretrained(
+            "beomi/kcELECTRA-base",
+            num_labels=2,
+            hidden_dropout_prob=0.1,
+            attention_probs_dropout_prob=0.1
+        )
+        
+        # 모델 경로 (프로젝트 루트/runs/detect/train/weights/finetuned_model_final.pt)
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # blueprints 폴더
+        PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', '..'))  # 프로젝트 루트
+        MODEL_PATH = os.path.join(PROJECT_ROOT, 'runs', 'detect', 'train', 'weights', 'finetuned_model_final.pt')
+        
+        print(f"📂 모델 경로: {MODEL_PATH}")
+        
+        if not os.path.exists(MODEL_PATH):
+            raise FileNotFoundError(f"모델 파일 없음: {MODEL_PATH}")
+        
+        _toxic_model.load_state_dict(torch.load(MODEL_PATH, map_location=_toxic_device))
+        _toxic_model.to(_toxic_device)
+        _toxic_model.eval()
+        
+        print(f"✅ 악플 모델 로드 완료! (Device: {_toxic_device})")
+        
+    except Exception as e:
+        print(f"❌ 악플 모델 로드 실패: {e}")
+
+# ========== 악플 체크 함수 ==========
+def text_filter(text):
+    """악플인지 확인"""
+    global _toxic_model, _toxic_tokenizer, _toxic_device
+    
+    # 첫 실행 시 모델 로드
+    if _toxic_model is None:
+        load_toxic_model()
+    
+    # 모델 로드 실패했으면 통과
+    if _toxic_model is None:
+        return '정상', 0.5
+    
+    if not text or not text.strip():
+        return '정상', 0.5
+    
+    try:
+        encoding = _toxic_tokenizer(
+            text,
+            max_length=128,
+            padding='max_length',
+            truncation=True,
+            return_tensors='pt'
+        )
+        
+        input_ids = encoding['input_ids'].to(_toxic_device)
+        attention_mask = encoding['attention_mask'].to(_toxic_device)
+        
+        with torch.no_grad():
+            outputs = _toxic_model(input_ids=input_ids, attention_mask=attention_mask)
+            probs = torch.softmax(outputs.logits, dim=1)
+            prediction = torch.argmax(probs, dim=1).item()
+            confidence = probs[0][prediction].item()
+        
+        label = "악플" if prediction == 1 else "정상"
+        return label, confidence
+        
+    except Exception as e:
+        print(f"❌ 필터링 오류: {e}")
+        return '정상', 0.0
 
 #이미지파일 형식 멀쩡한가
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -80,12 +166,14 @@ def addReview(goods_id):
   user_id=g.user.id
   stars=request.form.get('stars')
   
-  review_check, review_prediction = text_filter(content)
-  print('-----------------------')
-  print('review_prediction:',review_prediction)
-  print('-----------------------')
+  review_check, confidence = text_filter(content)
+  print('='*50)
+  print(f'📝 {content[:30]}...')
+  print(f'🔍 {review_check} (신뢰도: {confidence:.2f})')
+  print('='*50)
+
   if review_check=='악플':
-    return jsonify({'ok':False, 'message':'부적절한 단어가 포함되어있습니다'})
+    return jsonify({'ok':False, 'message':'부적절한 단어가 포함되어 있어 업로드가 불가합니다.'})
   
   image_path = None
   image = request.files.get('image')
@@ -126,12 +214,14 @@ def updateReview(reviewId):
     content=request.form.get('content')
     stars=request.form.get('stars')
     
-    review_check, review_prediction = text_filter(content)
-    print('-----------------------')
-    print('review_prediction:',review_prediction)
-    print('-----------------------')
+    review_check, confidence = text_filter(content)
+    print('='*50)
+    print(f'📝 수정: {content[:30]}...')
+    print(f'🔍 {review_check} (신뢰도: {confidence:.2f})')
+    print('='*50)
+    
     if review_check=='악플':
-      return jsonify({'ok':False, 'message':'부적절한 단어가 포함되어있습니다'})
+      return jsonify({'ok':False, 'message':'부적절한 단어가 포함되어 업로드가 불가합니다.'})
     
     image=request.files.get('image')
     print(image)
