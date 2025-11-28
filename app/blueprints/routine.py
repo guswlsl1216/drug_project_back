@@ -303,10 +303,8 @@ def searchDrug():
 def get_user_drugs(user_id):
     """
     유저 루틴 목록 조회
-    - SP(영양제), MP(약), User_meds(직접 등록) 모두 포함
-    - user_routines 기준으로 처리
+    - SP(영양제), User_meds(직접 등록) 포함/ user_routines 기준으로 처리
     """
-
     # 1️⃣ 유저 루틴 목록 가져오기
     user_routines = db.session.query(Routine).filter_by(author_id=user_id).all()
 
@@ -344,33 +342,6 @@ def get_user_drugs(user_id):
                 'eattime': routine.eattime
             })
 
-    # --- MP(기본 약) join ---
-    # mp_map = {}
-    # if med_ids:
-    #     med_data = (
-    #         db.session.query(Routine, MP)
-    #         .join(MP, Routine.drug_id == MP.id)
-    #         .filter(Routine.author_id == user_id, Routine.drug_id.in_(med_ids))
-    #         .all()
-    #     )
-    #     for routine, med in med_data:
-    #         mp_map[routine.drug_id] = routine
-    #         result.append({
-    #             'id': routine.id,
-    #             'type': 'medicine',
-    #             'drug_id': routine.drug_id,
-    #             'drugName': med.ITEM_NAME,
-    #             'method': med.UD_DOC_TXT,
-    #             'notice': med.NB_DOC_TXT,
-    #             'effect': med.EE_DOC_TXT,
-    #             'start_date': routine.start_date,
-    #             'end_date': routine.end_date,
-    #             'note': routine.note,
-    #             'eattime': routine.eattime
-    #         })
-
-    # --- User_meds(유저 직접 등록 약) join ---
-    # user_med_ids = [id_ for id_ in med_ids]
     if med_ids:
         user_meds_data = (
             db.session.query(Routine, User_meds)
@@ -448,8 +419,8 @@ def get_drug_history(user_id):
       drug = db.session.query(SP).filter(SP.id == r.drug_id).first()
       drug_name = drug.PRDLST_NM
     else:
-      drug = db.session.query(MP).filter(MP.id == r.drug_id).first()
-      drug_name = drug.ITEM_NAME
+      drug = db.session.query(User_meds).filter(User_meds.id == r.drug_id).first()
+      drug_name = drug.med_title
 
     # result에 담기 
     result.append({
